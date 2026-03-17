@@ -1,0 +1,31 @@
+name: Build executables
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+  workflow_dispatch:
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Build executable
+        run: uv run pyinstaller rsstitcher.spec
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsstitcher-${{ matrix.os }}
+          path: dist/rsstitcher*
+          retention-days: 1
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'

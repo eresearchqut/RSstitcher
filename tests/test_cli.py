@@ -1,0 +1,138 @@
+import hashlib
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from rsstitcher.main import main_cli as rsstitcher_main
+
+DATASETS = {
+    "bruker_gid": {
+        "tiff_hash": "6627302a6c1f7f584915c198e5397c0a",
+    },
+    "bruker_symmetric": {
+        "tiff_hash": "bd63e33972528d3cdda4a854c895b0e4",
+    },
+    "rigaku_gid": {
+        "tiff_hash": "cc90271dce8cdbfa2f98edd2c3f024be",
+    },
+    "rigaku_symmetric": {
+        "tiff_hash": "956ab201cd97d97318a41a68c18bb51d",
+    },
+    "new_data": {
+        "tiff_hash": "c6f8eaab40dcef52d1ee16d6bccf2f80",
+    },
+}
+
+
+def md5sum(file_path: Path) -> str:
+    """Compute md5 hash of a file."""
+    h = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+@pytest.mark.parametrize("dataset", DATASETS.keys())
+def test_rsstitcher_outputs(dataset, tmp_path):
+    start_time = time.time()
+
+    output_dir = tmp_path
+    tiff_file = output_dir / "pixels.tiff"
+
+    args = [
+        "-q",
+        f"tests/data/{dataset}",
+        "--write",
+        f"pixels_tiff={tiff_file}",
+    ]
+
+    sys.argv = ["rsstitcher"] + args
+    rsstitcher_main()
+
+    # Check output file exists
+    assert tiff_file.exists(), f"TIFF file missing for dataset {dataset}"
+
+    # Check modification time
+    tiff_mod = tiff_file.stat().st_mtime
+    assert tiff_mod >= start_time, f"TIFF file not updated for {dataset}"
+
+    # Check hash
+    expected = DATASETS[dataset]
+    assert md5sum(tiff_file) == expected["tiff_hash"], (
+        f"TIFF hash mismatch for {dataset}"
+    )
+
+
+@pytest.mark.parametrize(
+    "dataset,mode",
+    [("bruker_gid", "symmetric"), ("bruker_gid", "gid"), ("rigaku_gid", "gid")],
+)
+def test_mode_override(dataset, mode, tmp_path):
+    """Test explicit --mode override produces output without error."""
+    tiff_file = tmp_path / "pixels.tiff"
+    args = [
+        "-q",
+        f"tests/data/{dataset}",
+        "--mode",
+        mode,
+        "--write",
+        f"pixels_tiff={tiff_file}",
+    ]
+    sys.argv = ["rsstitcher"] + args
+    rsstitcher_main()
+    assert tiff_file.exists()
+
+
+def test_azimuthal_bins(tmp_path):
+    """Test --azimuthal-bins produces valid CSV with correct column count."""
+    csv_file = tmp_path / "azimuthal.csv"
+    args = [
+        "-q",
+        "tests/data/bruker_gid",
+        "--azimuthal-bins",
+        "3",
+        "--write",
+        f"azimuthal_csv={csv_file}",
+    ]
+    sys.argv = ["rsstitcher"] + args
+    rsstitcher_main()
+    assert csv_file.exists()
+
+    import csv
+
+    with open(csv_file) as f:
+        reader = csv.reader(f)
+        header = next(reader)
+    # Radius + 3 sector columns
+    assert len(header) == 4, f"Expected 4 columns, got {len(header)}: {header}"
+    assert header[0] == "Radius"
+    assert "Sector_" in header[1]
+
+
+def test_radial_bins(tmp_path):
+    """Test --radial-bins produces valid CSV."""
+    csv_file = tmp_path / "radial.csv"
+    args = [
+        "-q",
+        "tests/data/bruker_gid",
+        "--radial-bins",
+        "0.5,1.0",
+        "--write",
+        f"radial_csv={csv_file}",
+    ]
+    sys.argv = ["rsstitcher"] + args
+    rsstitcher_main()
+    assert csv_file.exists()
+
+    import csv
+
+    with open(csv_file) as f:
+        reader = csv.reader(f)
+        header = next(reader)
+    # Angle_degrees + 1 bin column
+    assert len(header) == 2, f"Expected 2 columns, got {len(header)}: {header}"
+    assert header[0] == "Angle_degrees"
+    assert "Bin_" in header[1]
