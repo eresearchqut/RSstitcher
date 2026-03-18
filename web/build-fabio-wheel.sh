@@ -15,7 +15,7 @@ rm -f "$WHEEL_DIR"/fabio-*.whl
 # --skip-built-in-packages: skip numpy, h5py, lxml, Pillow, etc. that ship with Pyodide
 # --skip-dependency hdf5plugin: not a Pyodide built-in but not needed (imports are guarded)
 # --no-build-dependencies: don't recurse into transitive deps
-uvx --from 'pyodide-build[resolve]==0.33.0' pyodide build \
+uvx --python 3.13 --from 'pyodide-build[resolve]==0.33.0' pyodide build \
     --outdir "$WHEEL_DIR" \
     --skip-built-in-packages \
     --skip-dependency hdf5plugin \
