@@ -1,12 +1,7 @@
-web: Web CI & Deploy
-
+name: Web CI & Deploy
 on:
   push:
     branches: [main]
-    paths: [web/**]
-  pull_request:
-    paths: [web/**]
-
 permissions:
   contents: read
   pages: write
