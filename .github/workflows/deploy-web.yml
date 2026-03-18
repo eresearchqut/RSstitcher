@@ -1,0 +1,86 @@
+web: Web CI & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: [web/**]
+  pull_request:
+    paths: [web/**]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, Format, and Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: web
+        run: pnpm install
+
+      - name: Prettier (check)
+        working-directory: web
+        run: pnpm format:check
+
+      - name: ESLint
+        working-directory: web
+        run: pnpm lint
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Build fabio wheel
+        working-directory: web
+        run: ./build-fabio-wheel.sh
+
+      - name: Build
+        working-directory: web
+        run: pnpm build
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: web-dist
+          path: web/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
