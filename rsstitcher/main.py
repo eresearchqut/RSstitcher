@@ -343,6 +343,16 @@ def process_image(e: Experiment, file_path: str) -> pd.DataFrame:
     return df
 
 
+def _make_grid(start: float, stop: float, step: float, n_decimals: int) -> np.ndarray:
+    """Create an evenly-spaced grid with deterministic length across platforms.
+
+    Uses integer-based stepping instead of np.arange with float step,
+    which can produce different array lengths due to FP accumulation.
+    """
+    n = int(round((stop - start) / step))
+    return np.round(start + np.arange(n) * step, n_decimals)
+
+
 def _snap_to_nearest(values: np.ndarray, targets: np.ndarray) -> np.ndarray:
     """
     Snap each value to the nearest value in a sorted targets array.
@@ -716,6 +726,11 @@ def run_experiment(
     if resolved_mode == "gid":
         image_df = apply_gid_transform(image_df, e.wavelength_a)
 
+    # Round to grid precision before computing ranges to ensure deterministic
+    # grid construction across platforms (absorbs tiny FP differences in trig)
+    image_df["Sx"] = np.round(image_df["Sx"], n_decimals)
+    image_df["Sz"] = np.round(image_df["Sz"], n_decimals)
+
     if image_df["Sx"].min() >= 0:
         sx_min = -e.delta_s
     else:
@@ -726,15 +741,17 @@ def run_experiment(
     else:
         sz_min = round(image_df["Sz"].min(), n_decimals)
 
-    out_sx_inv_angstroms = np.arange(
+    out_sx_inv_angstroms = _make_grid(
         sx_min - e.delta_s,
         round(image_df["Sx"].max(), n_decimals) + e.delta_s,
         e.delta_s,
+        n_decimals,
     )
-    out_sz_inv_angstroms = np.arange(
+    out_sz_inv_angstroms = _make_grid(
         sz_min - e.delta_s,
         round(image_df["Sz"].max(), n_decimals) + e.delta_s,
         e.delta_s,
+        n_decimals,
     )
 
     image_df["Sx"] = _snap_to_nearest(image_df["Sx"].to_numpy(), out_sx_inv_angstroms)
