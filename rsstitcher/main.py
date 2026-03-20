@@ -614,26 +614,51 @@ def compute_radial_profiles(
 ) -> pd.DataFrame:
     """Compute radial intensity profiles for each radial bin.
 
-    For each bin [r_min, r_max], select data in that range and take
-    nanmax intensity per gamma angle. Returns DataFrame with columns:
-    Angle_degrees, Bin_0.5_1.0, etc.
+    Builds a uniform R-Gamma grid (0.5-degree angular spacing), bins
+    intensity data via sum, then takes nanmax across R values in each
+    radial bin. Returns DataFrame with columns:
+    angle (degrees), S = r_min to r_max A^-1, etc.
     """
     df = image_df.copy()
     df["R"] = np.sqrt(df["Sx"] ** 2 + df["Sz"] ** 2)
     df["Gamma"] = np.arctan2(df["Sz"], df["Sx"])
-    df["Gamma_deg"] = np.round(np.degrees(df["Gamma"]) - 90, n_decimals)
 
-    all_angles = np.sort(df["Gamma_deg"].unique())
-    result = {"Angle_degrees": all_angles}
+    r_min_all, r_max_all = df["R"].min(), df["R"].max()
+    delta_r = round_to_1(
+        (r_max_all - r_min_all)
+        / max(1, len(np.unique(np.round(df["R"], n_decimals))) - 1)
+    )
+    if delta_r <= 0:
+        delta_r = round_to_1(r_max_all / 100)
 
-    for r_min, r_max in radial_bins:
-        col_name = f"Bin_{r_min}_{r_max}"
-        bin_df = df[(df["R"] >= r_min) & (df["R"] <= r_max)]
-        if bin_df.empty:
-            result[col_name] = np.full(len(all_angles), np.nan)
+    out_r = np.arange(
+        np.round(r_min_all, n_decimals) - delta_r,
+        np.round(r_max_all, n_decimals) + delta_r,
+        delta_r,
+    )
+
+    delta_gamma = np.radians(0.5)
+    out_gamma = np.arange(
+        np.round(df["Gamma"].min(), n_decimals) - delta_gamma,
+        np.round(df["Gamma"].max(), n_decimals) + delta_gamma,
+        delta_gamma,
+    )
+
+    df["R"] = _snap_to_nearest(df["R"].to_numpy(), out_r)
+    df["Gamma"] = _snap_to_nearest(df["Gamma"].to_numpy(), out_gamma)
+
+    r_gamma = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
+
+    out_r_rounded = np.round(out_r, n_decimals)
+    result = {"angle (degrees)": np.degrees(out_gamma) - 90}
+
+    for r_lo, r_hi in radial_bins:
+        col_name = f"S = {r_lo} to {r_hi} A^-1"
+        mask = (out_r_rounded >= r_lo) & (out_r_rounded < r_hi)
+        if mask.any():
+            result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)
         else:
-            grouped = bin_df.groupby("Gamma_deg")["Intensity"].max()
-            result[col_name] = grouped.reindex(all_angles).to_numpy()
+            result[col_name] = np.full(len(out_gamma), np.nan)
 
     return pd.DataFrame(result)
 
