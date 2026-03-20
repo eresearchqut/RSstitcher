@@ -549,10 +549,11 @@ def compute_azimuthal_profile(
         np.round(r_max, n_decimals) + delta_r,
         delta_r,
     )
+    delta_gamma = np.radians(0.5)
     out_gamma = np.arange(
         np.round(df["Gamma"].min(), n_decimals),
-        np.round(df["Gamma"].max(), n_decimals) + delta_r,
-        delta_r,
+        np.round(df["Gamma"].max(), n_decimals) + delta_gamma,
+        delta_gamma,
     )
 
     df["R"] = _snap_to_nearest(df["R"].to_numpy(), out_r)
