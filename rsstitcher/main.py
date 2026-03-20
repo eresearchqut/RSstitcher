@@ -427,7 +427,9 @@ def build_grid_azimuth(
     out_gamma: np.ndarray,
     n_decimals: int,
 ) -> np.ndarray:
-    """Bin intensity data into R-Gamma space using sum aggregation."""
+    """
+    Bin intensity data into R-Gamma space using sum aggregation.
+    """
     df = image_df.copy()
     df["R_r"] = np.round(df["R"], n_decimals)
     df["Gamma_r"] = np.round(df["Gamma"], n_decimals)
@@ -525,6 +527,8 @@ def compute_azimuthal_profile(
     image_df: pd.DataFrame,
     n_sectors: int,
     n_decimals: int,
+    out_sx: np.ndarray,
+    out_sz: np.ndarray,
 ) -> pd.DataFrame:
     """Compute azimuthal average profile split into N sectors over [0, pi].
 
@@ -555,9 +559,20 @@ def compute_azimuthal_profile(
     df["Gamma"] = _snap_to_nearest(df["Gamma"].to_numpy(), out_gamma)
 
     intensity_grid = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
-    count_df = df.copy()
-    count_df["Intensity"] = 1.0
-    count_grid = build_grid_azimuth(count_df, out_r, out_gamma, n_decimals)
+
+    # Build count grid from Sx/Sz meshgrid positions for proper area normalization.
+    # This counts how many grid cells map to each (R, Gamma) bin
+    sx_mesh, sz_mesh = np.meshgrid(out_sx, out_sz, indexing="ij")
+    positions = pd.DataFrame(
+        {
+            "R": np.sqrt(sx_mesh.ravel() ** 2 + sz_mesh.ravel() ** 2),
+            "Gamma": np.arctan2(sz_mesh.ravel(), sx_mesh.ravel()),
+            "Intensity": 1.0,
+        }
+    )
+    positions["R"] = _snap_to_nearest(positions["R"].to_numpy(), out_r)
+    positions["Gamma"] = _snap_to_nearest(positions["Gamma"].to_numpy(), out_gamma)
+    count_grid = build_grid_azimuth(positions, out_r, out_gamma, n_decimals)
 
     sector_boundaries = np.linspace(0, np.pi, n_sectors + 1)
     result = {"Radius": out_r}
@@ -775,7 +790,11 @@ def run_experiment(
 
     if azimuthal_bins is not None and azimuthal_bins >= 1:
         result["azimuthal_profile"] = compute_azimuthal_profile(
-            image_df, n_sectors=azimuthal_bins, n_decimals=n_decimals
+            image_df,
+            n_sectors=azimuthal_bins,
+            n_decimals=n_decimals,
+            out_sx=out_sx_inv_angstroms,
+            out_sz=out_sz_inv_angstroms,
         )
 
     if radial_bins is not None and len(radial_bins) > 0:
