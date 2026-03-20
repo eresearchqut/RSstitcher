@@ -107,14 +107,14 @@ export function OutputPanel({ result }: Props) {
           {result.outputs.azimuthal_csv && (
             <DownloadButton
               data={result.outputs.azimuthal_csv}
-              filename="azimuthal.csv"
+              filename="1D.csv"
               label="Azimuthal CSV"
             />
           )}
           {result.outputs.radial_csv && (
             <DownloadButton
               data={result.outputs.radial_csv}
-              filename="radial.csv"
+              filename="debeye_ring_profile.csv"
               label="Radial CSV"
             />
           )}

@@ -87,13 +87,13 @@ def process(
 
     # Azimuthal CSV
     if "azimuthal_profile" in result:
-        az_path = f"{output_dir}/azimuthal.csv"
+        az_path = f"{output_dir}/1D.csv"
         write_azimuthal_csv(az_path, result["azimuthal_profile"])
         outputs["azimuthal_csv"] = az_path
 
     # Radial CSV
     if "radial_profiles" in result:
-        rad_path = f"{output_dir}/radial.csv"
+        rad_path = f"{output_dir}/debeye_ring_profile.csv"
         write_radial_csv(rad_path, result["radial_profiles"])
         outputs["radial_csv"] = rad_path
 
