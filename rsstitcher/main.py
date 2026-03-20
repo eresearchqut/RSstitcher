@@ -621,7 +621,7 @@ def compute_radial_profiles(
     df = image_df.copy()
     df["R"] = np.sqrt(df["Sx"] ** 2 + df["Sz"] ** 2)
     df["Gamma"] = np.arctan2(df["Sz"], df["Sx"])
-    df["Gamma_deg"] = np.round(np.degrees(df["Gamma"]), n_decimals)
+    df["Gamma_deg"] = np.round(np.degrees(df["Gamma"]) - 90, n_decimals)
 
     all_angles = np.sort(df["Gamma_deg"].unique())
     result = {"Angle_degrees": all_angles}
