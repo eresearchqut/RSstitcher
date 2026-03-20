@@ -13,7 +13,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
   return (
     <div className="grid grid-cols-2 gap-4">
       <label className="block">
-        <span className="text-sm text-gray-400">Mode</span>
+        <span className="text-sm text-gray-400">Diffraction geometry</span>
         <select
           value={params.mode}
           onChange={(e) =>
@@ -29,7 +29,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <label className="block">
-        <span className="text-sm text-gray-400">Scale</span>
+        <span className="text-sm text-gray-400">Intensity</span>
         <select
           value={params.scale}
           onChange={(e) =>
@@ -60,7 +60,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <label className="block">
-        <span className="text-sm text-gray-400">Blur fraction</span>
+        <span className="text-sm text-gray-400">Frame edge blur fraction</span>
         <input
           type="number"
           value={params.blurFraction}
@@ -76,7 +76,8 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <label className="block">
-        <span className="text-sm text-gray-400">Azimuthal bins</span>
+        <span className="text-sm text-gray-400">Zenithal bins</span>
+        <span className="block text-xs text-gray-500">If requires integration to 1D</span>
         <input
           type="number"
           value={params.azimuthalBins ?? ""}
@@ -93,7 +94,10 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <div className="block">
-        <span className="text-sm text-gray-400">Circles</span>
+        <span className="text-sm text-gray-400">Reciprocal space ticks</span>
+        <span className="block text-xs text-gray-500">
+          <i>S</i> = 1/<i>d</i> (Δ<i>S</i> = 0.1 Å⁻¹)
+        </span>
         <div className="mt-1 flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm">
             <input
@@ -105,14 +109,17 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
               disabled={disabled}
               className="rounded"
             />
-            Auto circles
+            Include S scalar
           </label>
         </div>
       </div>
 
       <div className="col-span-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-400">Radial bins</span>
+          <div>
+            <span className="text-sm text-gray-400">Radial bins</span>
+            <span className="block text-xs text-gray-500">To export Debye ring profile</span>
+          </div>
           <button
             onClick={() => {
               const current = params.radialBins ?? [];
