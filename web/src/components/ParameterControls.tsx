@@ -111,7 +111,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
               disabled={disabled}
               className="rounded"
             />
-            Include S scalar
+            Export S scale
           </label>
         </div>
       </div>
