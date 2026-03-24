@@ -51,9 +51,8 @@ export function useFileSelection(
       }
 
       // Extract the top-level directory name from the first file's path
-      const firstPath = (
-        validFiles[0] as File & { webkitRelativePath: string }
-      ).webkitRelativePath;
+      const firstPath = (validFiles[0] as File & { webkitRelativePath: string })
+        .webkitRelativePath;
       const dirName = firstPath.split("/")[0];
       if (dirName) {
         onDirectoryDetected?.(dirName);
