@@ -40,7 +40,7 @@ export default function App() {
       <header className="mb-8">
         <h1 className="text-2xl font-bold">RSstitcher</h1>
         <p className="mt-1 text-sm text-gray-400">
-          Wide Range Reciprocal Space Map Builder — runs entirely in your
+          Wide Range Reciprocal Space Map Builder running entirely in your
           browser
         </p>
       </header>
