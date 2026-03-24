@@ -132,7 +132,10 @@ export function OutputPanel({
           <label className="mb-1 block text-xs text-gray-500">
             Project name{" "}
             <span className="text-gray-600">
-              (template vars: {"{delta_s}"}, {"{mode}"}, {"{scale}"}, ...)
+              (template vars: {"{type}"}, {"{mode}"}, {"{scale}"}, {"{delta_s}"}
+              , {"{wavelength_a}"}, {"{pixel_mm}"}, {"{detector_distance_mm}"},{" "}
+              {"{phi0_deg}"}, {"{theta_pixel_rad}"}, {"{n_decimals}"},{" "}
+              {"{blur_pixels}"}, {"{n_files}"})
             </span>
           </label>
           <input
