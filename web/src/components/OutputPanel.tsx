@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import type { ProcessResult } from "../worker/workerClient";
 import { ImagePreview } from "./ImagePreview";
 import { DownloadButton } from "./DownloadButton";
 
 interface Props {
   result: ProcessResult;
+  projectName: string;
+  onProjectNameChange: (name: string) => void;
 }
 
 const PARAM_LABELS: Record<string, string> = {
@@ -48,7 +51,50 @@ function formatValue(key: string, value: unknown): string {
   return String(value);
 }
 
-export function OutputPanel({ result }: Props) {
+const OUTPUT_SUFFIXES: Record<string, string> = {
+  pixels_tiff: "_pixels.tiff",
+  grid_tiff: "_grid.tiff",
+  experiment_json: "_experiment.json",
+  azimuthal_csv: "_1D.csv",
+  radial_csv: "_debeye_ring_profile.csv",
+};
+
+const OUTPUT_LABELS: Record<string, string> = {
+  pixels_tiff: "Pixels TIFF",
+  grid_tiff: "Grid TIFF",
+  experiment_json: "Experiment JSON",
+  azimuthal_csv: "Azimuthal CSV",
+  radial_csv: "Radial CSV",
+};
+
+/**
+ * Expand Python-style `{variable}` templates using experiment summary values.
+ * Unknown variables are left as-is.
+ */
+function expandTemplate(
+  template: string,
+  vars: Record<string, unknown>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const val = vars[key];
+    return val !== undefined ? String(val) : match;
+  });
+}
+
+export function OutputPanel({
+  result,
+  projectName,
+  onProjectNameChange,
+}: Props) {
+  const filenames = useMemo(() => {
+    const expanded = expandTemplate(projectName, result.summary);
+    const map: Record<string, string> = {};
+    for (const [key, suffix] of Object.entries(OUTPUT_SUFFIXES)) {
+      map[key] = expanded ? `${expanded}${suffix}` : suffix.slice(1);
+    }
+    return map;
+  }, [projectName, result.summary]);
+
   return (
     <div className="space-y-6">
       {/* Preview */}
@@ -82,42 +128,34 @@ export function OutputPanel({ result }: Props) {
       {/* Downloads */}
       <div>
         <h3 className="mb-2 text-sm font-medium text-gray-400">Downloads</h3>
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-gray-500">
+            Project name{" "}
+            <span className="text-gray-600">
+              (template vars: {"{delta_s}"}, {"{mode}"}, {"{scale}"}, ...)
+            </span>
+          </label>
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => onProjectNameChange(e.target.value)}
+            placeholder="project name"
+            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:border-gray-500 focus:outline-none"
+          />
+        </div>
         <div className="flex flex-wrap gap-3">
-          {result.outputs.pixels_tiff && (
-            <DownloadButton
-              data={result.outputs.pixels_tiff}
-              filename="pixels.tiff"
-              label="Pixels TIFF"
-            />
-          )}
-          {result.outputs.grid_tiff && (
-            <DownloadButton
-              data={result.outputs.grid_tiff}
-              filename="grid.tiff"
-              label="Grid TIFF"
-            />
-          )}
-          {result.outputs.experiment_json && (
-            <DownloadButton
-              data={result.outputs.experiment_json}
-              filename="experiment.json"
-              label="Experiment JSON"
-            />
-          )}
-          {result.outputs.azimuthal_csv && (
-            <DownloadButton
-              data={result.outputs.azimuthal_csv}
-              filename="1D.csv"
-              label="Azimuthal CSV"
-            />
-          )}
-          {result.outputs.radial_csv && (
-            <DownloadButton
-              data={result.outputs.radial_csv}
-              filename="debeye_ring_profile.csv"
-              label="Radial CSV"
-            />
-          )}
+          {Object.entries(result.outputs).map(([key, data]) => {
+            const label = OUTPUT_LABELS[key];
+            if (!label || !data) return null;
+            return (
+              <DownloadButton
+                key={key}
+                data={data}
+                filename={filenames[key]}
+                label={label}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

@@ -13,7 +13,9 @@ export interface UseFileSelectionReturn {
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
 }
 
-export function useFileSelection(): UseFileSelectionReturn {
+export function useFileSelection(
+  onDirectoryDetected?: (name: string) => void,
+): UseFileSelectionReturn {
   const [files, setFiles] = useState<InputFile[]>([]);
   const [fileCount, setFileCount] = useState(0);
   const [totalSize, setTotalSize] = useState(0);
@@ -48,6 +50,15 @@ export function useFileSelection(): UseFileSelectionReturn {
         return;
       }
 
+      // Extract the top-level directory name from the first file's path
+      const firstPath = (
+        validFiles[0] as File & { webkitRelativePath: string }
+      ).webkitRelativePath;
+      const dirName = firstPath.split("/")[0];
+      if (dirName) {
+        onDirectoryDetected?.(dirName);
+      }
+
       // Detect format from first file
       const firstExt = validFiles[0].name
         .substring(validFiles[0].name.lastIndexOf("."))
@@ -75,7 +86,7 @@ export function useFileSelection(): UseFileSelectionReturn {
       setFileCount(inputFiles.length);
       setTotalSize(inputFiles.reduce((sum, f) => sum + f.data.byteLength, 0));
     },
-    [],
+    [onDirectoryDetected],
   );
 
   return {

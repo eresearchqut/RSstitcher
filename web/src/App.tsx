@@ -19,7 +19,8 @@ const DEFAULT_PARAMS: ProcessParams = {
 
 export default function App() {
   const pyodide = usePyodide();
-  const fileSelection = useFileSelection();
+  const [projectName, setProjectName] = useState("");
+  const fileSelection = useFileSelection((dirName) => setProjectName(dirName));
   const [params, setParams] = useState<ProcessParams>(DEFAULT_PARAMS);
 
   const canProcess = pyodide.status === "ready" && fileSelection.fileCount > 0;
@@ -78,7 +79,11 @@ export default function App() {
 
       {pyodide.result && (
         <div className="mt-8 border-t border-gray-800 pt-6">
-          <OutputPanel result={pyodide.result} />
+          <OutputPanel
+            result={pyodide.result}
+            projectName={projectName}
+            onProjectNameChange={setProjectName}
+          />
         </div>
       )}
     </div>
