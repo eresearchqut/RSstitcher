@@ -31,7 +31,9 @@ export default function App() {
   }, [canProcess, pyodide, fileSelection.files, params]);
 
   const isWorking =
-    pyodide.status === "loading" || pyodide.status === "processing";
+    pyodide.status === "loading" ||
+    pyodide.status === "processing" ||
+    fileSelection.sampleLoading;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">

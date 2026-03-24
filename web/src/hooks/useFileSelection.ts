@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import type { InputFile } from "../worker/types";
+import { type SampleDataset, getSampleDatasetUrl } from "../sampleDatasets";
 
 const VALID_EXTENSIONS = [".gfrm", ".img"];
 
@@ -11,6 +12,10 @@ export interface UseFileSelectionReturn {
   selectDirectory: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  loadSampleDataset: (dataset: SampleDataset) => Promise<void>;
+  sampleLoading: boolean;
+  sampleProgress: { loaded: number; total: number } | null;
+  sampleError: string | null;
 }
 
 export function useFileSelection(
@@ -20,6 +25,12 @@ export function useFileSelection(
   const [fileCount, setFileCount] = useState(0);
   const [totalSize, setTotalSize] = useState(0);
   const [detectedFormat, setDetectedFormat] = useState<string | null>(null);
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [sampleProgress, setSampleProgress] = useState<{
+    loaded: number;
+    total: number;
+  } | null>(null);
+  const [sampleError, setSampleError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const selectDirectory = useCallback(() => {
@@ -84,6 +95,55 @@ export function useFileSelection(
       setFiles(inputFiles);
       setFileCount(inputFiles.length);
       setTotalSize(inputFiles.reduce((sum, f) => sum + f.data.byteLength, 0));
+      setSampleError(null);
+    },
+    [onDirectoryDetected],
+  );
+
+  const loadSampleDataset = useCallback(
+    async (dataset: SampleDataset) => {
+      setSampleLoading(true);
+      setSampleProgress({ loaded: 0, total: dataset.files.length });
+      setSampleError(null);
+      setFiles([]);
+      setFileCount(0);
+      setTotalSize(0);
+
+      try {
+        let loaded = 0;
+        const inputFiles = await Promise.all(
+          dataset.files.map(async (filePath) => {
+            const url = getSampleDatasetUrl(dataset.id, filePath);
+            const response = await fetch(url);
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch ${filePath}: ${response.status}`,
+              );
+            }
+            const data = await response.arrayBuffer();
+            loaded++;
+            setSampleProgress({ loaded, total: dataset.files.length });
+            return { path: filePath, data };
+          }),
+        );
+
+        setFiles(inputFiles);
+        setFileCount(inputFiles.length);
+        setTotalSize(inputFiles.reduce((sum, f) => sum + f.data.byteLength, 0));
+        setDetectedFormat(dataset.format);
+        onDirectoryDetected?.(dataset.id);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Download failed";
+        setSampleError(message);
+        setFiles([]);
+        setFileCount(0);
+        setTotalSize(0);
+        setDetectedFormat(null);
+      } finally {
+        setSampleLoading(false);
+        setSampleProgress(null);
+      }
     },
     [onDirectoryDetected],
   );
@@ -96,5 +156,9 @@ export function useFileSelection(
     selectDirectory,
     inputRef,
     handleChange,
+    loadSampleDataset,
+    sampleLoading,
+    sampleProgress,
+    sampleError,
   };
 }
