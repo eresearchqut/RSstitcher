@@ -9,19 +9,22 @@ from rsstitcher.main import main_cli as rsstitcher_main
 
 DATASETS = {
     "bruker_gid": {
-        "tiff_hash": "6627302a6c1f7f584915c198e5397c0a",
+        "tiff_hash": "c7b2a3667012fffdafa9773c4acd4a21",
     },
     "bruker_symmetric": {
         "tiff_hash": "bd63e33972528d3cdda4a854c895b0e4",
     },
     "rigaku_gid": {
-        "tiff_hash": "cc90271dce8cdbfa2f98edd2c3f024be",
+        "tiff_hash": "2fe3358fd1931692892838982b386bd4",
     },
     "rigaku_symmetric": {
         "tiff_hash": "956ab201cd97d97318a41a68c18bb51d",
     },
     "new_data": {
         "tiff_hash": "c6f8eaab40dcef52d1ee16d6bccf2f80",
+    },
+    "cor_powder": {
+        "tiff_hash": "d17832b554b6141a75503836542b1074",
     },
 }
 
@@ -106,10 +109,10 @@ def test_azimuthal_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # Radius + 3 sector columns
+    # Radius + 3 Gamma sector columns (old.py format: last sector's Radius overwrites)
     assert len(header) == 4, f"Expected 4 columns, got {len(header)}: {header}"
-    assert header[0] == "Radius"
-    assert "Sector_" in header[1]
+    assert header[0] == "Radius (S^-1)"
+    assert "Gamma" in header[1]
 
 
 def test_radial_bins(tmp_path):
@@ -132,7 +135,7 @@ def test_radial_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # Angle_degrees + 1 bin column
+    # angle (degrees) + 1 bin column
     assert len(header) == 2, f"Expected 2 columns, got {len(header)}: {header}"
-    assert header[0] == "Angle_degrees"
-    assert "Bin_" in header[1]
+    assert header[0] == "angle (degrees)"
+    assert "S = " in header[1]

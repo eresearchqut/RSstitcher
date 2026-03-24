@@ -364,12 +364,10 @@ def _snap_to_nearest(values: np.ndarray, targets: np.ndarray) -> np.ndarray:
     return np.where(np.abs(values - left) <= np.abs(values - right), left, right)
 
 
-def detect_mode(
-    image_df: pd.DataFrame, tolerance: float = 0.001
-) -> Literal["symmetric", "gid"]:
+def detect_mode(image_df: pd.DataFrame) -> Literal["symmetric", "gid"]:
     """Detect whether the experiment is symmetric or GID based on omega range."""
     omega_range = image_df["Omega"].max() - image_df["Omega"].min()
-    return "gid" if omega_range > tolerance else "symmetric"
+    return "gid" if omega_range > 0 else "symmetric"
 
 
 def apply_gid_transform(image_df: pd.DataFrame, wavelength_a: float) -> pd.DataFrame:
@@ -523,83 +521,94 @@ def build_overlay_grid(
     return grid
 
 
-def compute_azimuthal_profile(
+def _build_polar_grid(
     image_df: pd.DataFrame,
-    n_sectors: int,
     n_decimals: int,
-    out_sx: np.ndarray,
-    out_sz: np.ndarray,
-) -> pd.DataFrame:
-    """Compute azimuthal average profile split into N sectors over [0, pi].
-
-    Returns a DataFrame with columns: Radius, Sector_0_deg_to_60_deg, etc.
+    delta_s: float,
+    sx_min: float,
+    sx_max_raw: float,
+    sz_max_raw: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
+    """
+    Build shared R-Gamma intensity grid for azimuthal/radial profiles.
     """
     df = image_df.copy()
     df["R"] = np.sqrt(df["Sx"] ** 2 + df["Sz"] ** 2)
     df["Gamma"] = np.arctan2(df["Sz"], df["Sx"])
 
-    r_min, r_max = df["R"].min(), df["R"].max()
-    delta_r = round_to_1(
-        (r_max - r_min) / max(1, len(np.unique(np.round(df["R"], n_decimals))) - 1)
+    # Position grid from positive-Sz half-plane
+    out_sx_full = np.arange(
+        round(sx_min, n_decimals),
+        round(sx_max_raw, n_decimals) + delta_s,
+        delta_s,
     )
-    if delta_r <= 0:
-        delta_r = round_to_1(r_max / 100)
+    out_sz_full = np.arange(0, round(sz_max_raw, n_decimals) + delta_s, delta_s)
+    full_x, full_z = np.meshgrid(out_sx_full, out_sz_full)
+    positions = pd.DataFrame(
+        {
+            "R": np.sqrt(full_x.ravel() ** 2 + full_z.ravel() ** 2),
+            "Gamma": np.arctan2(full_z.ravel(), full_x.ravel()),
+            "Intensity": 1.0,
+        }
+    )
+
+    # R and Gamma grids derived from positions (using delta_s as R step)
     out_r = np.arange(
-        np.round(r_min, n_decimals),
-        np.round(r_max, n_decimals) + delta_r,
-        delta_r,
+        round(float(positions["R"].min()), n_decimals) - delta_s,
+        round(float(positions["R"].max()), n_decimals) + delta_s,
+        delta_s,
     )
     delta_gamma = np.radians(0.5)
     out_gamma = np.arange(
-        np.round(df["Gamma"].min(), n_decimals),
-        np.round(df["Gamma"].max(), n_decimals) + delta_gamma,
+        round(float(positions["Gamma"].min()), n_decimals) - delta_gamma,
+        round(float(positions["Gamma"].max()), n_decimals) + delta_gamma,
         delta_gamma,
     )
+
+    # Snap positions and data to grids
+    positions["R"] = _snap_to_nearest(positions["R"].to_numpy(), out_r)
+    positions["Gamma"] = _snap_to_nearest(positions["Gamma"].to_numpy(), out_gamma)
 
     df["R"] = _snap_to_nearest(df["R"].to_numpy(), out_r)
     df["Gamma"] = _snap_to_nearest(df["Gamma"].to_numpy(), out_gamma)
 
-    intensity_grid = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
+    # Build intensity grid
+    r_gamma = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
 
-    # Build count grid from Sx/Sz meshgrid positions for proper area normalization.
-    # This counts how many grid cells map to each (R, Gamma) bin
-    sx_mesh, sz_mesh = np.meshgrid(out_sx, out_sz, indexing="ij")
-    positions = pd.DataFrame(
-        {
-            "R": np.sqrt(sx_mesh.ravel() ** 2 + sz_mesh.ravel() ** 2),
-            "Gamma": np.arctan2(sz_mesh.ravel(), sx_mesh.ravel()),
-            "Intensity": 1.0,
-        }
-    )
-    positions["R"] = _snap_to_nearest(positions["R"].to_numpy(), out_r)
-    positions["Gamma"] = _snap_to_nearest(positions["Gamma"].to_numpy(), out_gamma)
-    count_grid = build_grid_azimuth(positions, out_r, out_gamma, n_decimals)
+    return r_gamma, out_r, out_gamma, positions
 
+
+def compute_azimuthal_profile(
+    r_gamma: np.ndarray,
+    out_r: np.ndarray,
+    out_gamma: np.ndarray,
+    positions: pd.DataFrame,
+    n_sectors: int,
+) -> pd.DataFrame:
+    """
+    Compute azimuthal average profile split into N sectors over [0, pi].
+    """
     sector_boundaries = np.linspace(0, np.pi, n_sectors + 1)
-    result = {"Radius": out_r}
+    azimuthal_dict: dict[str, pd.Series] = {}
 
-    for i in range(n_sectors):
-        lo_deg = int(np.degrees(sector_boundaries[i]))
-        hi_deg = int(np.degrees(sector_boundaries[i + 1]))
-        col_name = f"Sector_{lo_deg}_deg_to_{hi_deg}_deg"
+    for s in range(n_sectors):
+        lo = sector_boundaries[s]
+        hi = sector_boundaries[s + 1]
 
-        gamma_mask = (out_gamma >= sector_boundaries[i]) & (
-            out_gamma < sector_boundaries[i + 1]
+        n_sector = positions[(positions["Gamma"] >= lo) & (positions["Gamma"] < hi)]
+        values, counts = np.unique(
+            n_sector["R"].to_numpy(), return_counts=True, equal_nan=False
         )
-        if i == n_sectors - 1:
-            gamma_mask = (out_gamma >= sector_boundaries[i]) & (
-                out_gamma <= sector_boundaries[i + 1]
-            )
 
-        sector_intensity = np.nansum(intensity_grid[:, gamma_mask], axis=1)
-        sector_count = np.nansum(count_grid[:, gamma_mask], axis=1)
-        with np.errstate(invalid="ignore", divide="ignore"):
-            sector_avg = np.where(
-                sector_count > 0, sector_intensity / sector_count, np.nan
-            )
-        result[col_name] = sector_avg
+        gamma_mask = (out_gamma >= lo) & (out_gamma < hi)
+        g_sector = np.nansum(r_gamma[:, gamma_mask], axis=1)[: len(counts)] / counts
 
-    return pd.DataFrame(result)
+        azimuthal_dict["Radius (S^-1)"] = pd.Series(values)
+        azimuthal_dict[f"Gamma {np.degrees(lo):.1f} : {np.degrees(hi):.1f}"] = (
+            pd.Series(g_sector)
+        )
+
+    return pd.DataFrame.from_dict(azimuthal_dict)
 
 
 def write_azimuthal_csv(file_path: str, df: pd.DataFrame) -> None:
@@ -608,53 +617,21 @@ def write_azimuthal_csv(file_path: str, df: pd.DataFrame) -> None:
 
 
 def compute_radial_profiles(
-    image_df: pd.DataFrame,
+    r_gamma: np.ndarray,
+    out_r: np.ndarray,
+    out_gamma: np.ndarray,
     radial_bins: list[tuple[float, float]],
     n_decimals: int,
 ) -> pd.DataFrame:
-    """Compute radial intensity profiles for each radial bin.
+    """Compute radial intensity profiles from the shared R-Gamma grid.
 
-    Builds a uniform R-Gamma grid (0.5-degree angular spacing), bins
-    intensity data via sum, then takes nanmax across R values in each
-    radial bin. Returns DataFrame with columns:
-    angle (degrees), S = r_min to r_max A^-1, etc.
+    Returns DataFrame with columns: angle (degrees), S = r_min to r_max A^-1, etc.
     """
-    df = image_df.copy()
-    df["R"] = np.sqrt(df["Sx"] ** 2 + df["Sz"] ** 2)
-    df["Gamma"] = np.arctan2(df["Sz"], df["Sx"])
-
-    r_min_all, r_max_all = df["R"].min(), df["R"].max()
-    delta_r = round_to_1(
-        (r_max_all - r_min_all)
-        / max(1, len(np.unique(np.round(df["R"], n_decimals))) - 1)
-    )
-    if delta_r <= 0:
-        delta_r = round_to_1(r_max_all / 100)
-
-    out_r = np.arange(
-        np.round(r_min_all, n_decimals) - delta_r,
-        np.round(r_max_all, n_decimals) + delta_r,
-        delta_r,
-    )
-
-    delta_gamma = np.radians(0.5)
-    out_gamma = np.arange(
-        np.round(df["Gamma"].min(), n_decimals) - delta_gamma,
-        np.round(df["Gamma"].max(), n_decimals) + delta_gamma,
-        delta_gamma,
-    )
-
-    df["R"] = _snap_to_nearest(df["R"].to_numpy(), out_r)
-    df["Gamma"] = _snap_to_nearest(df["Gamma"].to_numpy(), out_gamma)
-
-    r_gamma = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
-
-    out_r_rounded = np.round(out_r, n_decimals)
     result = {"angle (degrees)": np.degrees(out_gamma) - 90}
 
     for r_lo, r_hi in radial_bins:
         col_name = f"S = {r_lo} to {r_hi} A^-1"
-        mask = (out_r_rounded >= r_lo) & (out_r_rounded < r_hi)
+        mask = (out_r >= r_lo) & (out_r < r_hi)
         if mask.any():
             result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)
         else:
@@ -767,11 +744,6 @@ def run_experiment(
     if resolved_mode == "gid":
         image_df = apply_gid_transform(image_df, e.wavelength_a)
 
-    # Round to grid precision before computing ranges to ensure deterministic
-    # grid construction across platforms (absorbs tiny FP differences in trig)
-    image_df["Sx"] = np.round(image_df["Sx"], n_decimals)
-    image_df["Sz"] = np.round(image_df["Sz"], n_decimals)
-
     if image_df["Sx"].min() >= 0:
         sx_min = -e.delta_s
     else:
@@ -782,18 +754,25 @@ def run_experiment(
     else:
         sz_min = round(image_df["Sz"].min(), n_decimals)
 
-    out_sx_inv_angstroms = _make_grid(
-        sx_min - e.delta_s,
-        round(image_df["Sx"].max(), n_decimals) + e.delta_s,
-        e.delta_s,
+    out_sx_inv_angstroms = np.round(
+        np.arange(
+            sx_min - e.delta_s,
+            round(image_df["Sx"].max(), n_decimals) + e.delta_s,
+            e.delta_s,
+        ),
         n_decimals,
     )
-    out_sz_inv_angstroms = _make_grid(
-        sz_min - e.delta_s,
-        round(image_df["Sz"].max(), n_decimals) + e.delta_s,
-        e.delta_s,
+    out_sz_inv_angstroms = np.round(
+        np.arange(
+            sz_min - e.delta_s,
+            round(image_df["Sz"].max(), n_decimals) + e.delta_s,
+            e.delta_s,
+        ),
         n_decimals,
     )
+
+    sx_max_raw = float(image_df["Sx"].max())
+    sz_max_raw = float(image_df["Sz"].max())
 
     image_df["Sx"] = _snap_to_nearest(image_df["Sx"].to_numpy(), out_sx_inv_angstroms)
     image_df["Sz"] = _snap_to_nearest(image_df["Sz"].to_numpy(), out_sz_inv_angstroms)
@@ -814,18 +793,27 @@ def run_experiment(
         "image_df": image_df,
     }
 
+    need_polar = (azimuthal_bins is not None and azimuthal_bins >= 1) or (
+        radial_bins is not None and len(radial_bins) > 0
+    )
+    if need_polar:
+        r_gamma, out_r, out_gamma, positions = _build_polar_grid(
+            image_df,
+            n_decimals=n_decimals,
+            delta_s=e.delta_s,
+            sx_min=sx_min,
+            sx_max_raw=sx_max_raw,
+            sz_max_raw=sz_max_raw,
+        )
+
     if azimuthal_bins is not None and azimuthal_bins >= 1:
         result["azimuthal_profile"] = compute_azimuthal_profile(
-            image_df,
-            n_sectors=azimuthal_bins,
-            n_decimals=n_decimals,
-            out_sx=out_sx_inv_angstroms,
-            out_sz=out_sz_inv_angstroms,
+            r_gamma, out_r, out_gamma, positions, n_sectors=azimuthal_bins
         )
 
     if radial_bins is not None and len(radial_bins) > 0:
         result["radial_profiles"] = compute_radial_profiles(
-            image_df, radial_bins=radial_bins, n_decimals=n_decimals
+            r_gamma, out_r, out_gamma, radial_bins, n_decimals
         )
 
     return result
