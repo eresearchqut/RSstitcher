@@ -589,7 +589,8 @@ def compute_azimuthal_profile(
     Compute azimuthal average profile split into N sectors over [0, pi].
     """
     sector_boundaries = np.linspace(0, np.pi, n_sectors + 1)
-    azimuthal_dict: dict[str, pd.Series] = {}
+    gamma_cols: dict[str, pd.Series] = {}
+    radius = pd.Series(dtype=float)
 
     for s in range(n_sectors):
         lo = sector_boundaries[s]
@@ -603,12 +604,17 @@ def compute_azimuthal_profile(
         gamma_mask = (out_gamma >= lo) & (out_gamma < hi)
         g_sector = np.nansum(r_gamma[:, gamma_mask], axis=1)[: len(counts)] / counts
 
-        azimuthal_dict["Radius (S^-1)"] = pd.Series(values)
-        azimuthal_dict[f"Gamma {np.degrees(lo):.1f} : {np.degrees(hi):.1f}"] = (
-            pd.Series(g_sector)
+        radius = pd.Series(values)
+        gamma_cols[f"Gamma {np.degrees(lo):.1f} : {np.degrees(hi):.1f}"] = pd.Series(
+            g_sector
         )
 
-    return pd.DataFrame.from_dict(azimuthal_dict)
+    # Single shared Radius column — all sectors share the same non-NaN radii
+    # because the detector's angular coverage doesn't reach the grid corners
+    # (the truncated tail is only NaN).
+    result: dict[str, pd.Series] = {"Radius (S^-1)": radius}
+    result.update(gamma_cols)
+    return pd.DataFrame.from_dict(result)
 
 
 def write_azimuthal_csv(file_path: str, df: pd.DataFrame) -> None:

@@ -109,7 +109,7 @@ def test_azimuthal_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # Radius + 3 Gamma sector columns (old.py format: last sector's Radius overwrites)
+    # 1 shared Radius + 3 Gamma sector columns
     assert len(header) == 4, f"Expected 4 columns, got {len(header)}: {header}"
     assert header[0] == "Radius (S^-1)"
     assert "Gamma" in header[1]
