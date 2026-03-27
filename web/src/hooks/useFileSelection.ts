@@ -13,6 +13,7 @@ export interface UseFileSelectionReturn {
   inputRef: React.RefObject<HTMLInputElement | null>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   loadSampleDataset: (dataset: SampleDataset) => Promise<void>;
+  clearFiles: () => void;
   sampleLoading: boolean;
   sampleProgress: { loaded: number; total: number } | null;
   sampleError: string | null;
@@ -100,6 +101,14 @@ export function useFileSelection(
     [onDirectoryDetected],
   );
 
+  const clearFiles = useCallback(() => {
+    setFiles([]);
+    setFileCount(0);
+    setTotalSize(0);
+    setDetectedFormat(null);
+    setSampleError(null);
+  }, []);
+
   const loadSampleDataset = useCallback(
     async (dataset: SampleDataset) => {
       setSampleLoading(true);
@@ -157,6 +166,7 @@ export function useFileSelection(
     inputRef,
     handleChange,
     loadSampleDataset,
+    clearFiles,
     sampleLoading,
     sampleProgress,
     sampleError,

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
+import type { View } from "vega";
 
 interface Props {
   /** Raw CSV file as ArrayBuffer */
@@ -6,6 +7,8 @@ interface Props {
   /** "azimuthal" or "radial" — determines axis labels and parsing */
   kind: "azimuthal" | "radial";
 }
+
+const POINT_STYLE = { size: 6, filled: true as const, fill: "white", strokeWidth: 0 };
 
 /** Parse CSV text into an array of row objects. */
 function parseCsv(text: string): {
@@ -52,6 +55,18 @@ function toLong(
 
 export function CsvChart({ data, kind }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<View | null>(null);
+  const [showPoints, setShowPoints] = useState(false);
+
+  const handleReset = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.signal("grid_x", null);
+    view.signal("grid_y", null);
+    view.run();
+  }, []);
+
+  const pointSetting = useMemo(() => (showPoints ? POINT_STYLE : false), [showPoints]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -80,7 +95,32 @@ export function CsvChart({ data, kind }: Props) {
           height: 260,
           background: "transparent",
           data: { values },
-          mark: { type: "line", strokeWidth: 1.5 },
+          params: [
+            {
+              name: "grid",
+              select: { type: "interval" },
+              bind: "scales",
+            },
+            {
+              name: "hover",
+              select: {
+                type: "point",
+                fields: ["series"],
+                on: "pointerover",
+                clear: "pointerout",
+              },
+            },
+            {
+              name: "seriesFilter",
+              select: { type: "point", fields: ["series"] },
+              bind: "legend",
+            },
+          ],
+          mark: {
+            type: "line",
+            strokeWidth: 1.5,
+            point: pointSetting,
+          },
           encoding: {
             x: {
               field: "x",
@@ -108,6 +148,29 @@ export function CsvChart({ data, kind }: Props) {
               title: kind === "azimuthal" ? "Sector" : "Radial bin",
               legend: { labelColor: "#9ca3af", titleColor: "#9ca3af" },
             },
+            opacity: {
+              condition: { param: "seriesFilter", value: 1 },
+              value: 0.1,
+            },
+            strokeWidth: {
+              condition: { param: "hover", empty: false, value: 3 },
+              value: 1.5,
+            },
+            tooltip: [
+              {
+                field: "x",
+                type: "quantitative",
+                title: xLabel,
+                format: ".4f",
+              },
+              {
+                field: "y",
+                type: "quantitative",
+                title: yLabel,
+                format: ".2f",
+              },
+              { field: "series", type: "nominal", title: "Series" },
+            ],
           },
           config: {
             view: { stroke: "transparent" },
@@ -116,14 +179,45 @@ export function CsvChart({ data, kind }: Props) {
         },
         { actions: false, renderer: "svg" },
       ).then((res) => {
-        if (cancelled) res.finalize();
+        if (cancelled) {
+          res.finalize();
+        } else {
+          viewRef.current = res.view;
+        }
       });
     });
 
     return () => {
       cancelled = true;
+      viewRef.current = null;
     };
-  }, [data, kind]);
+  }, [data, kind, pointSetting]);
 
-  return <div ref={containerRef} className="w-full" />;
+  return (
+    <div>
+      <div ref={containerRef} className="w-full" />
+      <div className="mt-1 flex items-center justify-between">
+        <p className="text-xs text-gray-600">
+          Scroll to zoom. Drag to pan. Click legend to toggle series.
+        </p>
+        <div className="flex gap-3">
+          <label className="flex cursor-pointer items-center gap-1 text-xs text-gray-500 hover:text-gray-300">
+            <input
+              type="checkbox"
+              checked={showPoints}
+              onChange={(e) => setShowPoints(e.target.checked)}
+              className="rounded"
+            />
+            Points
+          </label>
+          <button
+            onClick={handleReset}
+            className="text-xs text-gray-500 hover:text-gray-300"
+          >
+            Reset zoom
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -12,8 +12,8 @@ const DEFAULT_PARAMS: ProcessParams = {
   scale: "linear",
   phiTolerance: 5.0,
   blurFraction: 0.1,
-  azimuthalBins: null,
-  radialBins: null,
+  azimuthalBins: 1,
+  radialBins: [[0.1, 1.0]],
   circles: null,
 };
 

@@ -24,6 +24,7 @@ export function FileSelector({ fileSelection, disabled }: Props) {
     inputRef,
     handleChange,
     loadSampleDataset,
+    clearFiles,
     sampleLoading,
     sampleProgress,
     sampleError,
@@ -65,7 +66,10 @@ export function FileSelector({ fileSelection, disabled }: Props) {
         <div className="flex gap-2">
           <select
             value={selectedSample}
-            onChange={(e) => setSelectedSample(e.target.value)}
+            onChange={(e) => {
+              setSelectedSample(e.target.value);
+              clearFiles();
+            }}
             disabled={isDisabled}
             className="flex-1 rounded bg-gray-800 px-2 py-1.5 text-sm text-gray-300 disabled:text-gray-600"
           >

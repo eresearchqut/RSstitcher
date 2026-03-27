@@ -127,7 +127,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
           <button
             onClick={() => {
               const current = params.radialBins ?? [];
-              update({ radialBins: [...current, [0.5, 1.0]] });
+              update({ radialBins: [...current, [0.1, 1.0]] });
             }}
             disabled={disabled}
             className="text-xs text-blue-400 hover:text-blue-300"
