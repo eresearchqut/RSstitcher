@@ -76,7 +76,7 @@ export function ImagePreview({ arrayData, arrayShape, gridData }: Props) {
     <div>
       <canvas
         ref={canvasRef}
-        className="h-auto max-w-full border border-gray-700 bg-black"
+        className="h-auto w-full border border-gray-700 bg-black"
         style={{ imageRendering: "pixelated" }}
       />
       <div className="mt-2 flex items-center gap-6">
