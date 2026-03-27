@@ -12,7 +12,6 @@ function pad(n: number, width: number): string {
 export interface SampleDataset {
   id: string;
   name: string;
-  description: string;
   format: string;
   sizeLabel: string;
   files: string[];
@@ -22,8 +21,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "bruker_gid",
     name: "Bruker GID",
-    description:
-      "PEDOT on Silicon — Grazing Incidence Diffraction (42 frames, phi0 + phi180)",
     format: "Bruker (.gfrm)",
     sizeLabel: "7 MB",
     files: [
@@ -40,7 +37,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "bruker_symmetric",
     name: "Bruker Symmetric",
-    description: "Wide-range RSM — symmetric geometry (100 frames)",
     format: "Bruker (.gfrm)",
     sizeLabel: "22 MB",
     files: range(0, 100).map(
@@ -50,7 +46,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "rigaku_gid",
     name: "Rigaku GID",
-    description: "PEDOT on PET — Grazing Incidence Diffraction (4 frames)",
     format: "Rigaku (.img)",
     sizeLabel: "11 MB",
     files: range(1, 5).map((i) => `WRRSM-PEDOT-PET_${pad(i, 4)}.img`),
@@ -58,7 +53,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "rigaku_symmetric",
     name: "Rigaku Symmetric",
-    description: "Satin Spar — symmetric geometry (10 frames)",
     format: "Rigaku (.img)",
     sizeLabel: "88 MB",
     files: range(1, 11).map(
@@ -68,7 +62,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "new_data",
     name: "Rigaku (New Data)",
-    description: "Rigaku detector — 5 frames",
     format: "Rigaku (.img)",
     sizeLabel: "28 MB",
     files: range(1, 6).map((i) => `image_${i}.img`),
@@ -76,7 +69,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   {
     id: "cor_powder",
     name: "Corundum Powder",
-    description: "Corundum powder diffraction standard (8 frames)",
     format: "Rigaku (.img)",
     sizeLabel: "71 MB",
     files: range(1, 9).map((i) => `WRRSM-Corundum_${pad(i, 4)}.img`),

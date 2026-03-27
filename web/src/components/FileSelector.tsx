@@ -38,8 +38,6 @@ export function FileSelector({ fileSelection, disabled }: Props) {
     }
   };
 
-  const selectedDataset = SAMPLE_DATASETS.find((d) => d.id === selectedSample);
-
   const isDisabled = disabled || sampleLoading;
 
   return (
@@ -86,11 +84,6 @@ export function FileSelector({ fileSelection, disabled }: Props) {
             Load
           </button>
         </div>
-        {selectedDataset && !sampleLoading && (
-          <p className="mt-1 text-xs text-gray-500">
-            {selectedDataset.description}
-          </p>
-        )}
         {sampleLoading && sampleProgress && (
           <p className="mt-1 text-xs text-blue-400">
             Downloading... {sampleProgress.loaded}/{sampleProgress.total} files
