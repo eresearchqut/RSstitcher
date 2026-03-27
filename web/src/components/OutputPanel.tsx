@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ProcessResult } from "../worker/workerClient";
 import { ImagePreview } from "./ImagePreview";
 import { DownloadButton } from "./DownloadButton";
+import { CsvChart } from "./CsvChart";
 
 interface Props {
   result: ProcessResult;
@@ -124,6 +125,24 @@ export function OutputPanel({
           })}
         </dl>
       </div>
+
+      {/* Charts */}
+      {result.outputs.azimuthal_csv && (
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-gray-400">
+            Azimuthal Profile
+          </h3>
+          <CsvChart data={result.outputs.azimuthal_csv} kind="azimuthal" />
+        </div>
+      )}
+      {result.outputs.radial_csv && (
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-gray-400">
+            Radial Profile
+          </h3>
+          <CsvChart data={result.outputs.radial_csv} kind="radial" />
+        </div>
+      )}
 
       {/* Downloads */}
       <div>
