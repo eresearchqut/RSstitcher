@@ -59,7 +59,7 @@ export default function App() {
           </a>
         </div>
         <p className="mt-1 text-sm text-gray-400">
-          Wide Range Reciprocal Space Map Builder running entirely in your
+          Wide Range Reciprocal Space Map builder running entirely in your
           browser
         </p>
       </header>
