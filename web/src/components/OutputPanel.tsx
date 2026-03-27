@@ -7,7 +7,6 @@ import { CsvChart } from "./CsvChart";
 interface Props {
   result: ProcessResult;
   projectName: string;
-  onProjectNameChange: (name: string) => void;
 }
 
 const PARAM_LABELS: Record<string, string> = {
@@ -52,7 +51,7 @@ function formatValue(key: string, value: unknown): string {
   return String(value);
 }
 
-const OUTPUT_SUFFIXES: Record<string, string> = {
+export const OUTPUT_SUFFIXES: Record<string, string> = {
   pixels_tiff: "_pixels.tiff",
   grid_tiff: "_grid.tiff",
   experiment_json: "_experiment.json",
@@ -60,19 +59,11 @@ const OUTPUT_SUFFIXES: Record<string, string> = {
   radial_csv: "_debeye_ring_profile.csv",
 };
 
-const OUTPUT_LABELS: Record<string, string> = {
-  pixels_tiff: "Pixels TIFF",
-  grid_tiff: "Grid TIFF",
-  experiment_json: "Experiment JSON",
-  azimuthal_csv: "Azimuthal CSV",
-  radial_csv: "Radial CSV",
-};
-
 /**
  * Expand Python-style `{variable}` templates using experiment summary values.
  * Unknown variables are left as-is.
  */
-function expandTemplate(
+export function expandTemplate(
   template: string,
   vars: Record<string, unknown>,
 ): string {
@@ -82,11 +73,7 @@ function expandTemplate(
   });
 }
 
-export function OutputPanel({
-  result,
-  projectName,
-  onProjectNameChange,
-}: Props) {
+export function OutputPanel({ result, projectName }: Props) {
   const filenames = useMemo(() => {
     const expanded = expandTemplate(projectName, result.summary);
     const map: Record<string, string> = {};
@@ -98,12 +85,30 @@ export function OutputPanel({
 
   return (
     <div className="space-y-6">
-      {/* Preview */}
-      <ImagePreview
-        arrayData={result.arrayData}
-        arrayShape={result.arrayShape}
-        gridData={result.gridData}
-      />
+      {/* Preview + image downloads */}
+      <div>
+        <ImagePreview
+          arrayData={result.arrayData}
+          arrayShape={result.arrayShape}
+          gridData={result.gridData}
+        />
+        <div className="mt-3 flex flex-wrap gap-3">
+          {result.outputs.pixels_tiff && (
+            <DownloadButton
+              data={result.outputs.pixels_tiff}
+              filename={filenames.pixels_tiff}
+              label="Pixels TIFF"
+            />
+          )}
+          {result.outputs.grid_tiff && (
+            <DownloadButton
+              data={result.outputs.grid_tiff}
+              filename={filenames.grid_tiff}
+              label="Grid TIFF"
+            />
+          )}
+        </div>
+      </div>
 
       {/* Experiment parameters */}
       <div>
@@ -124,6 +129,15 @@ export function OutputPanel({
             );
           })}
         </dl>
+        {result.outputs.experiment_json && (
+          <div className="mt-3">
+            <DownloadButton
+              data={result.outputs.experiment_json}
+              filename={filenames.experiment_json}
+              label="Experiment JSON"
+            />
+          </div>
+        )}
       </div>
 
       {/* Charts */}
@@ -133,6 +147,13 @@ export function OutputPanel({
             Azimuthal Profile
           </h3>
           <CsvChart data={result.outputs.azimuthal_csv} kind="azimuthal" />
+          <div className="mt-3">
+            <DownloadButton
+              data={result.outputs.azimuthal_csv}
+              filename={filenames.azimuthal_csv}
+              label="Azimuthal CSV"
+            />
+          </div>
         </div>
       )}
       {result.outputs.radial_csv && (
@@ -141,45 +162,16 @@ export function OutputPanel({
             Radial Profile
           </h3>
           <CsvChart data={result.outputs.radial_csv} kind="radial" />
+          <div className="mt-3">
+            <DownloadButton
+              data={result.outputs.radial_csv}
+              filename={filenames.radial_csv}
+              label="Radial CSV"
+            />
+          </div>
         </div>
       )}
 
-      {/* Downloads */}
-      <div>
-        <h3 className="mb-2 text-sm font-medium text-gray-400">Downloads</h3>
-        <div className="mb-3">
-          <label className="mb-1 block text-xs text-gray-500">
-            Project name{" "}
-            <span className="text-gray-600">
-              (template vars: {"{type}"}, {"{mode}"}, {"{scale}"}, {"{delta_s}"}
-              , {"{wavelength_a}"}, {"{pixel_mm}"}, {"{detector_distance_mm}"},{" "}
-              {"{phi0_deg}"}, {"{theta_pixel_rad}"}, {"{n_decimals}"},{" "}
-              {"{blur_pixels}"}, {"{n_files}"})
-            </span>
-          </label>
-          <input
-            type="text"
-            value={projectName}
-            onChange={(e) => onProjectNameChange(e.target.value)}
-            placeholder="project name"
-            className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:border-gray-500 focus:outline-none"
-          />
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(result.outputs).map(([key, data]) => {
-            const label = OUTPUT_LABELS[key];
-            if (!label || !data) return null;
-            return (
-              <DownloadButton
-                key={key}
-                data={data}
-                filename={filenames[key]}
-                label={label}
-              />
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

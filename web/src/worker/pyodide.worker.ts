@@ -149,9 +149,6 @@ for d in ['/input', '/output']:
         ? JSON.stringify(params.radialBins.map(([min, max]) => `${min},${max}`))
         : "None";
 
-    const circlesStr =
-      params.circles !== null ? JSON.stringify(params.circles) : "None";
-
     const azBins =
       params.azimuthalBins !== null ? String(params.azimuthalBins) : "None";
 
@@ -165,7 +162,6 @@ _result = web_entry.process(
     blur_fraction=${params.blurFraction},
     azimuthal_bins=${azBins},
     radial_bins_str=${radialBinsStr === "None" ? "None" : `'${radialBinsStr}'`},
-    circles_str=${circlesStr === "None" ? "None" : `'${circlesStr}'`},
 )
 `);
 

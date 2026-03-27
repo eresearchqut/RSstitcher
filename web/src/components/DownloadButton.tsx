@@ -18,9 +18,9 @@ export function DownloadButton({ data, filename, label }: Props) {
   return (
     <button
       onClick={handleClick}
-      className="rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm transition-colors hover:bg-gray-700"
+      className="cursor-pointer rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-gray-100"
     >
-      {label}
+      Download {label}
     </button>
   );
 }

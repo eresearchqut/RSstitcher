@@ -33,7 +33,6 @@ def process(
     blur_fraction: float = 0.1,
     azimuthal_bins: int | None = None,
     radial_bins_str: str | None = None,
-    circles_str: str | None = None,
 ):
     """Run rsstitcher and write outputs to the virtual FS.
 
@@ -71,19 +70,17 @@ def process(
     write_experiment_json(json_path, result["experiment"])
     outputs["experiment_json"] = json_path
 
-    # Grid overlay if circles requested
-    if circles_str is not None:
-        circles = json.loads(circles_str)
-        grid_array = build_overlay_grid(
-            out_sx=result["out_sx_inv_angstroms"],
-            out_sz=result["out_sz_inv_angstroms"],
-            radii=circles,
-            n_decimals=result["experiment"].n_decimals,
-            delta_s=result["experiment"].delta_s,
-        )
-        grid_path = f"{output_dir}/grid.tiff"
-        write_grid_tiff(grid_path, grid_array, result["experiment"])
-        outputs["grid_tiff"] = grid_path
+    # Grid overlay (always generate with auto circles)
+    grid_array = build_overlay_grid(
+        out_sx=result["out_sx_inv_angstroms"],
+        out_sz=result["out_sz_inv_angstroms"],
+        radii=[-1.0],
+        n_decimals=result["experiment"].n_decimals,
+        delta_s=result["experiment"].delta_s,
+    )
+    grid_path = f"{output_dir}/grid.tiff"
+    write_grid_tiff(grid_path, grid_array, result["experiment"])
+    outputs["grid_tiff"] = grid_path
 
     # Azimuthal CSV
     if "azimuthal_profile" in result:
@@ -130,14 +127,7 @@ def process(
     arr = result["result_array"].astype(np.float32)
     array_shape = list(arr.shape)
 
-    # Always generate a grid overlay (auto circles) for the preview toggle
-    grid_array = build_overlay_grid(
-        out_sx=result["out_sx_inv_angstroms"],
-        out_sz=result["out_sz_inv_angstroms"],
-        radii=json.loads(circles_str) if circles_str is not None else [-1.0],
-        n_decimals=result["experiment"].n_decimals,
-        delta_s=result["experiment"].delta_s,
-    )
+    # Reuse grid_array computed above for the preview toggle
     grid_data = grid_array.astype(np.uint8).tobytes()
 
     return {

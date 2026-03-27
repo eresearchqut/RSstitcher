@@ -95,27 +95,6 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
         />
       </label>
 
-      <div className="block">
-        <span className="text-sm text-gray-400">Reciprocal space ticks</span>
-        <span className="block text-xs text-gray-500">
-          <i>S</i> = 1/<i>d</i> (Δ<i>S</i> = 0.1 Å⁻¹)
-        </span>
-        <div className="mt-1 flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
-              checked={params.circles !== null}
-              onChange={(e) =>
-                update({ circles: e.target.checked ? [-1] : null })
-              }
-              disabled={disabled}
-              className="rounded"
-            />
-            Export S scale
-          </label>
-        </div>
-      </div>
-
       <div className="col-span-2">
         <div className="flex items-center justify-between">
           <div>

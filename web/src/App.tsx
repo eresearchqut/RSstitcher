@@ -1,10 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import JSZip from "jszip";
 import { usePyodide } from "./hooks/usePyodide";
 import { useFileSelection } from "./hooks/useFileSelection";
 import { FileSelector } from "./components/FileSelector";
 import { ParameterControls } from "./components/ParameterControls";
 import { StatusDisplay } from "./components/StatusDisplay";
-import { OutputPanel } from "./components/OutputPanel";
+import {
+  OutputPanel,
+  OUTPUT_SUFFIXES,
+  expandTemplate,
+} from "./components/OutputPanel";
 import type { ProcessParams } from "./worker/types";
 
 const DEFAULT_PARAMS: ProcessParams = {
@@ -14,7 +19,6 @@ const DEFAULT_PARAMS: ProcessParams = {
   blurFraction: 0.1,
   azimuthalBins: 1,
   radialBins: [[0.1, 1.0]],
-  circles: null,
 };
 
 export default function App() {
@@ -34,6 +38,37 @@ export default function App() {
     pyodide.status === "loading" ||
     pyodide.status === "processing" ||
     fileSelection.sampleLoading;
+
+  const zipFilenames = useMemo(() => {
+    if (!pyodide.result) return {};
+    const expanded = expandTemplate(projectName, pyodide.result.summary);
+    const map: Record<string, string> = {};
+    for (const [key, suffix] of Object.entries(OUTPUT_SUFFIXES)) {
+      map[key] = expanded ? `${expanded}${suffix}` : suffix.slice(1);
+    }
+    return map;
+  }, [projectName, pyodide.result]);
+
+  const handleDownloadZip = useCallback(async () => {
+    if (!pyodide.result) return;
+    const zip = new JSZip();
+    for (const [key, data] of Object.entries(pyodide.result.outputs)) {
+      if (data && zipFilenames[key]) {
+        zip.file(zipFilenames[key], data);
+      }
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const expanded = expandTemplate(
+      projectName,
+      pyodide.result.summary,
+    );
+    a.download = expanded ? `${expanded}.zip` : "rsstitcher.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [pyodide.result, zipFilenames, projectName]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -79,6 +114,25 @@ export default function App() {
             <FileSelector fileSelection={fileSelection} disabled={isWorking} />
           </div>
 
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">
+              Project name
+            </label>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="project name"
+              className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:border-gray-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-600">
+              Template vars: {"{type}"}, {"{mode}"}, {"{scale}"}, {"{delta_s}"}
+              , {"{wavelength_a}"}, {"{pixel_mm}"}, {"{detector_distance_mm}"},{" "}
+              {"{phi0_deg}"}, {"{theta_pixel_rad}"}, {"{n_decimals}"},{" "}
+              {"{blur_pixels}"}, {"{n_files}"}
+            </p>
+          </div>
+
           <button
             onClick={handleProcess}
             disabled={!canProcess || isWorking}
@@ -86,6 +140,15 @@ export default function App() {
           >
             {pyodide.status === "processing" ? "Processing..." : "Process"}
           </button>
+
+          {pyodide.result && (
+            <button
+              onClick={handleDownloadZip}
+              className="w-full cursor-pointer rounded border border-gray-700 bg-gray-800 px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-gray-700 hover:text-gray-100"
+            >
+              Download Results as ZIP
+            </button>
+          )}
         </div>
 
         <div>
@@ -100,11 +163,7 @@ export default function App() {
 
       {pyodide.result && (
         <div className="mt-8 border-t border-gray-800 pt-6">
-          <OutputPanel
-            result={pyodide.result}
-            projectName={projectName}
-            onProjectNameChange={setProjectName}
-          />
+          <OutputPanel result={pyodide.result} projectName={projectName} />
         </div>
       )}
     </div>
