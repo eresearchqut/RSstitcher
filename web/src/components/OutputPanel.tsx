@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ProcessResult } from "../worker/workerClient";
+import { OUTPUT_SUFFIXES, expandTemplate } from "../outputUtils";
 import { ImagePreview } from "./ImagePreview";
 import { DownloadButton } from "./DownloadButton";
 import { CsvChart } from "./CsvChart";
@@ -49,28 +50,6 @@ function formatValue(key: string, value: unknown): string {
   if (key === "n_decimals") return `${value} decimal places`;
   if (key === "blur_pixels") return `${value} px`;
   return String(value);
-}
-
-export const OUTPUT_SUFFIXES: Record<string, string> = {
-  pixels_tiff: "_pixels.tiff",
-  grid_tiff: "_grid.tiff",
-  experiment_json: "_experiment.json",
-  azimuthal_csv: "_1D.csv",
-  radial_csv: "_debeye_ring_profile.csv",
-};
-
-/**
- * Expand Python-style `{variable}` templates using experiment summary values.
- * Unknown variables are left as-is.
- */
-export function expandTemplate(
-  template: string,
-  vars: Record<string, unknown>,
-): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
-    const val = vars[key];
-    return val !== undefined ? String(val) : match;
-  });
 }
 
 export function OutputPanel({ result, projectName }: Props) {
@@ -171,7 +150,6 @@ export function OutputPanel({ result, projectName }: Props) {
           </div>
         </div>
       )}
-
     </div>
   );
 }

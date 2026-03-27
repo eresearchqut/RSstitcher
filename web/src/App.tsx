@@ -5,11 +5,8 @@ import { useFileSelection } from "./hooks/useFileSelection";
 import { FileSelector } from "./components/FileSelector";
 import { ParameterControls } from "./components/ParameterControls";
 import { StatusDisplay } from "./components/StatusDisplay";
-import {
-  OutputPanel,
-  OUTPUT_SUFFIXES,
-  expandTemplate,
-} from "./components/OutputPanel";
+import { OutputPanel } from "./components/OutputPanel";
+import { OUTPUT_SUFFIXES, expandTemplate } from "./outputUtils";
 import type { ProcessParams } from "./worker/types";
 
 const DEFAULT_PARAMS: ProcessParams = {
@@ -61,10 +58,7 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const expanded = expandTemplate(
-      projectName,
-      pyodide.result.summary,
-    );
+    const expanded = expandTemplate(projectName, pyodide.result.summary);
     a.download = expanded ? `${expanded}.zip` : "rsstitcher.zip";
     a.click();
     URL.revokeObjectURL(url);
@@ -126,8 +120,8 @@ export default function App() {
               className="w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:border-gray-500 focus:outline-none"
             />
             <p className="mt-1 text-xs text-gray-600">
-              Template vars: {"{type}"}, {"{mode}"}, {"{scale}"}, {"{delta_s}"}
-              , {"{wavelength_a}"}, {"{pixel_mm}"}, {"{detector_distance_mm}"},{" "}
+              Template vars: {"{type}"}, {"{mode}"}, {"{scale}"}, {"{delta_s}"},{" "}
+              {"{wavelength_a}"}, {"{pixel_mm}"}, {"{detector_distance_mm}"},{" "}
               {"{phi0_deg}"}, {"{theta_pixel_rad}"}, {"{n_decimals}"},{" "}
               {"{blur_pixels}"}, {"{n_files}"}
             </p>

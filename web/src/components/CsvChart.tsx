@@ -8,7 +8,12 @@ interface Props {
   kind: "azimuthal" | "radial";
 }
 
-const POINT_STYLE = { size: 6, filled: true as const, fill: "white", strokeWidth: 0 };
+const POINT_STYLE = {
+  size: 6,
+  filled: true as const,
+  fill: "white",
+  strokeWidth: 0,
+};
 
 /** Parse CSV text into an array of row objects. */
 function parseCsv(text: string): {
@@ -66,7 +71,10 @@ export function CsvChart({ data, kind }: Props) {
     view.run();
   }, []);
 
-  const pointSetting = useMemo(() => (showPoints ? POINT_STYLE : false), [showPoints]);
+  const pointSetting = useMemo(
+    () => (showPoints ? POINT_STYLE : false),
+    [showPoints],
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
