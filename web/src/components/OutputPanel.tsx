@@ -123,7 +123,7 @@ export function OutputPanel({ result, projectName }: Props) {
       {result.outputs.azimuthal_csv && (
         <div>
           <h3 className="mb-2 text-sm font-medium text-gray-400">
-            Azimuthal Profile
+            1D diffraction patterns
           </h3>
           <CsvChart
             data={result.outputs.azimuthal_csv}
@@ -142,7 +142,7 @@ export function OutputPanel({ result, projectName }: Props) {
       {result.outputs.radial_csv && (
         <div>
           <h3 className="mb-2 text-sm font-medium text-gray-400">
-            Radial Profile
+            Debye ring profiles
           </h3>
           <CsvChart
             data={result.outputs.radial_csv}

@@ -100,7 +100,7 @@ export function CsvChart({ data, kind, exportName }: Props) {
     const values = toLong(headers, rows, xCol);
 
     const xLabel =
-      kind === "azimuthal" ? "Radius (S\u207B\u00B9)" : "Angle (\u00B0)";
+      kind === "azimuthal" ? "S = 1/d (\u00C5\u207B\u00B9)" : "Zenithal Angle (\u00B0)";
     const yLabel = "Intensity";
 
     let cancelled = false;

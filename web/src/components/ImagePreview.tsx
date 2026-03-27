@@ -98,7 +98,10 @@ export function ImagePreview({ arrayData, arrayShape, gridData }: Props) {
             onChange={(e) => setShowGrid(e.target.checked)}
             className="rounded"
           />
-          Show grid overlay
+          Show grid overlay{" "}
+          <span className="text-xs text-gray-500">
+            (Reciprocal Space Scale S = 1/d, ΔS = 0.1 Å⁻¹)
+          </span>
         </label>
       </div>
     </div>

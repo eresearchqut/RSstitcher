@@ -62,7 +62,7 @@ export function FileSelector({ fileSelection, disabled }: Props) {
       </button>
 
       <div className="mt-3">
-        <p className="mb-2 text-xs text-gray-500">Or try a sample dataset:</p>
+        <p className="mb-2 text-xs text-gray-500">Or try an example dataset:</p>
         <div className="flex gap-2">
           <select
             value={selectedSample}
