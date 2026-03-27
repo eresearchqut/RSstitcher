@@ -125,7 +125,11 @@ export function OutputPanel({ result, projectName }: Props) {
           <h3 className="mb-2 text-sm font-medium text-gray-400">
             Azimuthal Profile
           </h3>
-          <CsvChart data={result.outputs.azimuthal_csv} kind="azimuthal" />
+          <CsvChart
+            data={result.outputs.azimuthal_csv}
+            kind="azimuthal"
+            exportName={filenames.azimuthal_csv.replace(/\.csv$/, "")}
+          />
           <div className="mt-3">
             <DownloadButton
               data={result.outputs.azimuthal_csv}
@@ -140,7 +144,11 @@ export function OutputPanel({ result, projectName }: Props) {
           <h3 className="mb-2 text-sm font-medium text-gray-400">
             Radial Profile
           </h3>
-          <CsvChart data={result.outputs.radial_csv} kind="radial" />
+          <CsvChart
+            data={result.outputs.radial_csv}
+            kind="radial"
+            exportName={filenames.radial_csv.replace(/\.csv$/, "")}
+          />
           <div className="mt-3">
             <DownloadButton
               data={result.outputs.radial_csv}

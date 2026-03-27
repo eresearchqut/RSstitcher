@@ -6,6 +6,8 @@ interface Props {
   data: ArrayBuffer;
   /** "azimuthal" or "radial" — determines axis labels and parsing */
   kind: "azimuthal" | "radial";
+  /** Filename (without extension) for PNG export */
+  exportName?: string;
 }
 
 const POINT_STYLE = {
@@ -58,7 +60,7 @@ function toLong(
   return long;
 }
 
-export function CsvChart({ data, kind }: Props) {
+export function CsvChart({ data, kind, exportName }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View | null>(null);
   const [showPoints, setShowPoints] = useState(false);
@@ -70,6 +72,17 @@ export function CsvChart({ data, kind }: Props) {
     view.signal("grid_y", null);
     view.run();
   }, []);
+
+  const handleSavePng = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.toImageURL("png", 2).then((url) => {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${exportName || kind}.png`;
+      a.click();
+    });
+  }, [exportName, kind]);
 
   const pointSetting = useMemo(
     () => (showPoints ? POINT_STYLE : false),
@@ -185,7 +198,7 @@ export function CsvChart({ data, kind }: Props) {
             axis: { domainColor: "#4b5563" },
           },
         },
-        { actions: false, renderer: "svg" },
+        { actions: false, renderer: "canvas" },
       ).then((res) => {
         if (cancelled) {
           res.finalize();
@@ -218,6 +231,12 @@ export function CsvChart({ data, kind }: Props) {
             />
             Points
           </label>
+          <button
+            onClick={handleSavePng}
+            className="text-xs text-gray-500 hover:text-gray-300"
+          >
+            Save PNG
+          </button>
           <button
             onClick={handleReset}
             className="text-xs text-gray-500 hover:text-gray-300"
