@@ -53,7 +53,7 @@ export function ImagePreview({ arrayData, arrayShape, gridData }: Props) {
         const normalized = isNaN(v) || !isFinite(v) ? 0 : (v - min) / range;
         const gray = Math.round(Math.pow(normalized, gamma) * 255);
 
-        const dstIdx = ((outRows - 1 - j) * outCols + i) * 4;
+        const dstIdx = ((outRows - 1 - j) * outCols + (outCols - 1 - i)) * 4;
 
         if (showGrid && grid[srcIdx]) {
           // Grid line: cyan overlay
