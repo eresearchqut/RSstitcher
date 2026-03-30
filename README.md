@@ -6,7 +6,13 @@ Reciprocal Space Mapping.
 
 ## Quick Start
 
-**Fastest way to run the software:**
+**Try it in your browser first — no installation needed:**
+
+The easiest way to use RSstitcher is the [web version](https://eresearchqut.github.io/RSstitcher/). It runs entirely in your browser using WebAssembly. Data stays on your machine and is never uploaded to any server.
+
+![Web screenshot](assets/web.png)
+
+**To install and run locally:**
 
 1. Download and extract the repository ZIP file by clicking the "Download repository" button in the top right of this
    page.
@@ -38,7 +44,7 @@ See the instructions below for more details.
 
 ## Supported data formats
 
-These are the only file formats currently supported, but more formats can be trivially added in future releases:
+These are the only file formats with built-in support. See the [custom instruments guide](rsstitcher/instruments/README.md) for instructions on using a custom data format.
 
 - Bruker `.gfrm` files
 - Rigaku `.img` files
@@ -63,12 +69,14 @@ WRRSM_3-40_chi0-80-10_alpha0.4_0009.img
 There is example data included in the repository, which can be used to test the software. It can be found in the
 following directories:
 
-| Dataset name     | Data type         | Path                                                         |   
+| Dataset name     | Data type         | Path                                                         |
 |------------------|-------------------|--------------------------------------------------------------|
 | bruker_gid       | Bruker gfrm files | [`tests/data/bruker_gid`](tests/data/bruker_gid)             |
 | bruker_symmetric | Bruker gfrm files | [`tests/data/bruker_symmetric`](tests/data/bruker_symmetric) |
 | rigaku_gid       | Rigaku img files  | [`tests/data/rigaku_gid`](tests/data/rigaku_gid)             |
 | rigaku_symmetric | Rigaku img files  | [`tests/data/rigaku_symmetric`](tests/data/rigaku_symmetric) |
+| new_data         | Rigaku img files  | [`tests/data/new_data`](tests/data/new_data)                 |
+| cor_powder       | Rigaku img files  | [`tests/data/cor_powder`](tests/data/cor_powder)              |
 
 To run RSstitcher, and only output the results to the console. For example, with the bruker sample data:
 
@@ -195,7 +203,7 @@ You may then view the combined 2D reciprocal space map in any image viewer (eg. 
 
 To see the full list of command line options, run the following command:
 
-Commmand:
+Command:
 
 ```
 rsstitcher --help
@@ -206,8 +214,11 @@ Result:
 ```
 usage: rsstitcher [-h] [-q] [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                   [--write OUTPUT=PATH] [--circles [CIRCLES ...]]
-                  [--scale {linear,log,sqrt}] [--phi-tolerance PHI_TOLERANCE]
-                  [--blur-fraction BLUR_FRACTION]
+                  [--mode {auto,symmetric,gid}] [--scale {linear,log,sqrt}]
+                  [--phi-tolerance PHI_TOLERANCE]
+                  [--blur-fraction BLUR_FRACTION] [--azimuthal-bins N]
+                  [--radial-bins MIN,MAX [MIN,MAX ...]] [--instrument NAME |
+                  --instrument-path PATH]
                   path
 
 Process 2D diffraction images into a 2D reciprocal space map.
@@ -221,12 +232,12 @@ options:
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
   --write OUTPUT=PATH   Write output to a custom path or template
-                        
+
                         Format: OUTPUT=PATH
-                        Outputs: pixels_tiff, grid_tiff, experiment_json.
-                        
+                        Outputs: pixels_tiff, grid_tiff, experiment_json, azimuthal_csv, radial_csv, radial_overlay_tiff.
+
                         Example: --write pixels_tiff=project_{delta_s}_S.tiff --write grid_tiff=overlays.tiff
-                        
+
                         Template variables:
                             - type
                             - data_size
@@ -239,18 +250,27 @@ options:
                             - n_decimals
                             - blur_pixels
                             - scale
-                        
+
   --circles [CIRCLES ...]
                         Overlay radial circles in Å⁻¹ on the output grid.
                         Provide a list of radii (e.g., --circles 0.5 1.0 1.5), or pass -1 to draw
                         default circles every 0.1 Å⁻¹ up to the max radius (e.g., --circles -1).
                         If provided with no values (just --circles), defaults to -1.
+  --mode {auto,symmetric,gid}
+                        Coordinate transform mode. 'auto' detects from omega range. Default: auto
   --scale {linear,log,sqrt}
                         Intensity scaling mode to apply after baseline subtraction and before blur. Default: linear
   --phi-tolerance PHI_TOLERANCE
                         Allowed tolerance for phi angle mirroring, in degrees. Default: 5.0 degrees
   --blur-fraction BLUR_FRACTION
                         Fraction of pixels to blur after scaling. Use 0 to disable blurring. Default: 0.1
+  --azimuthal-bins N    Number of azimuthal sectors for averaging. Enables azimuthal_csv output.
+  --radial-bins MIN,MAX [MIN,MAX ...]
+                        Radial bins as MIN,MAX pairs (e.g., --radial-bins 0.5,1.0 1.0,2.0). Enables radial_csv output.
+  --instrument NAME     Use a specific built-in instrument instead of auto-detecting.
+                        Accepts a name or file extension (e.g. 'gfrm', 'Bruker GFRM', 'img', 'Rigaku IMG').
+  --instrument-path PATH
+                        Path to a custom instrument config JSON file.
 
 ```
 
@@ -343,3 +363,6 @@ tests/test_cli.py ...                                                    [100%]
 ============================== 3 passed in 9.96s ===============================
 ```
 
+## Disclaimer
+
+The web version of RSstitcher was developed with support from an AI model (Claude Opus 4.6 by Anthropic).
