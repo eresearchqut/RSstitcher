@@ -6,14 +6,9 @@ All file I/O goes through Pyodide's virtual FS (Emscripten FS).
 """
 
 import json
-import sys
 from pathlib import Path
 
-# rsstitcher source is mounted at /rsstitcher on the virtual FS
-if "/rsstitcher" not in sys.path:
-    sys.path.insert(0, "/rsstitcher")
-
-from rsstitcher.main import (
+from rsstitcher.experiment import (
     build_overlay_grid,
     run_experiment,
     write_azimuthal_csv,
@@ -22,6 +17,7 @@ from rsstitcher.main import (
     write_pixels_tiff,
     write_radial_csv,
 )
+from rsstitcher.instrument import resolve_instrument
 
 
 def process(
@@ -33,6 +29,7 @@ def process(
     blur_fraction: float = 0.1,
     azimuthal_bins: int | None = None,
     radial_bins_str: str | None = None,
+    instrument: str = "auto",
 ):
     """Run rsstitcher and write outputs to the virtual FS.
 
@@ -48,6 +45,8 @@ def process(
             for pair in json.loads(radial_bins_str)
         ]
 
+    instruments = resolve_instrument(instrument)
+
     result = run_experiment(
         path=input_dir,
         mode=mode,
@@ -56,6 +55,7 @@ def process(
         blur_fraction=blur_fraction,
         azimuthal_bins=azimuthal_bins,
         radial_bins=radial_bins,
+        instruments=instruments,
     )
 
     outputs = {}

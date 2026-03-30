@@ -16,6 +16,8 @@ const DEFAULT_PARAMS: ProcessParams = {
   blurFraction: 0.1,
   azimuthalBins: 1,
   radialBins: [[0.1, 1.0]],
+  instrument: "auto",
+  customInstrumentJson: null,
 };
 
 export default function App() {

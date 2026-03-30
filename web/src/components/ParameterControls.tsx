@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ProcessParams } from "../worker/types";
 
 interface Props {
@@ -9,9 +10,77 @@ interface Props {
 export function ParameterControls({ params, onChange, disabled }: Props) {
   const update = (partial: Partial<ProcessParams>) =>
     onChange({ ...params, ...partial });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleInstrumentFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      update({ customInstrumentJson: reader.result as string });
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="grid grid-cols-2 gap-4">
+      <label className="block">
+        <span className="text-sm text-gray-400">Instrument</span>
+        <select
+          value={params.instrument === "custom" ? "custom" : params.instrument}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === "custom") {
+              update({ instrument: "custom" });
+            } else {
+              update({ instrument: val, customInstrumentJson: null });
+            }
+          }}
+          disabled={disabled}
+          className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+        >
+          <option value="auto">Auto-detect</option>
+          <option value="gfrm">Bruker GFRM</option>
+          <option value="img">Rigaku IMG</option>
+          <option value="custom">Custom...</option>
+        </select>
+      </label>
+
+      {params.instrument === "custom" && (
+        <label className="block">
+          <span className="text-sm text-gray-400">Instrument config</span>
+          <div className="mt-1 flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+              className="rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
+            >
+              {params.customInstrumentJson ? "Change file" : "Choose JSON..."}
+            </button>
+            {params.customInstrumentJson && (
+              <span className="text-xs text-green-400">Loaded</span>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleInstrumentFileChange}
+            className="hidden"
+          />
+          <a
+            href="https://github.com/eresearchqut/RSstitcher/blob/main/rsstitcher/instruments/README.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 block text-xs text-blue-400 hover:text-blue-300"
+          >
+            How to write an instrument config
+          </a>
+        </label>
+      )}
+
       <label className="block">
         <span className="text-sm text-gray-400">Diffraction geometry</span>
         <select

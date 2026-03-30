@@ -18,7 +18,7 @@ export function StatusDisplay({ status, progressStage, error }: Props) {
         </div>
       )}
 
-      {status === "ready" && (
+      {status === "ready" && !error && (
         <span className="text-green-400">Ready to process</span>
       )}
 
@@ -33,7 +33,7 @@ export function StatusDisplay({ status, progressStage, error }: Props) {
         <span className="text-green-400">Processing complete</span>
       )}
 
-      {status === "error" && error && (
+      {error && (
         <div className="text-red-400">
           <p className="font-medium">Error</p>
           <pre className="mt-1 rounded bg-red-950/50 p-2 text-xs break-all whitespace-pre-wrap">

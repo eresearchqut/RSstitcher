@@ -46,6 +46,9 @@ jobs:
         working-directory: web
         run: ./build-fabio-wheel.sh
 
+      - name: Build rsstitcher wheel
+        run: uv build --wheel --out-dir web/public/wheels/
+
       - name: Build
         working-directory: web
         run: pnpm build

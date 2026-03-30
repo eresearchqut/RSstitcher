@@ -1,9 +1,9 @@
 # ruff: noqa F401
-from .main import (
+from .experiment import (
     DEFAULT_PIXEL_SIZE,
+    IMAGE_COLUMNS,
     Experiment,
     FileTypeError,
-    IMAGE_COLUMNS,
     ImageProcessingError,
     Result,
     RSstitcherError,
@@ -18,7 +18,6 @@ from .main import (
     detect_mode,
     get_decimal_places,
     get_experiment,
-    main_cli,
     parse_gfrm,
     parse_img,
     process_image,
@@ -31,3 +30,16 @@ from .main import (
     write_pixels_tiff,
     write_radial_csv,
 )
+from .instrument import (
+    Image,
+    InstrumentConfig,
+    InvalidHeaderError,
+    MissingHeaderError,
+    get_instrument,
+    load_builtin_instruments,
+    load_instrument,
+    parse_with_instrument,
+    resolve_instrument,
+    safe_eval,
+)
+from .main import main_cli

@@ -6,10 +6,10 @@ hiddenimports = collect_submodules("fabio")
 
 
 a = Analysis(
-    ['rsstitcher/main.py'],
+    ['rsstitcher/__main__.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('rsstitcher/instruments', 'rsstitcher/instruments')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

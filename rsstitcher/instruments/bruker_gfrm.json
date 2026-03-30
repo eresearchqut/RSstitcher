@@ -1,0 +1,25 @@
+{
+    "name": "Bruker GFRM",
+    "file_extension": "gfrm",
+    "header_values": {
+        "start_0": {"header": "START", "index": 0},
+        "increme_0": {"header": "INCREME", "index": 0},
+        "center_1": {"header": "CENTER", "index": 1},
+        "angles_1": {"header": "ANGLES", "index": 1},
+        "angles_2": {"header": "ANGLES", "index": 2},
+        "angles_3": {"header": "ANGLES", "index": 3},
+        "distanc_0": {"header": "DISTANC", "index": 0},
+        "wavelen_1": {"header": "WAVELEN", "index": 1}
+    },
+    "fields": {
+        "beam_position_x": "(-1 * start_0) / increme_0",
+        "beam_position_y": "center_1",
+        "chi_degrees": "angles_3 - 180",
+        "phi_degrees": "angles_2",
+        "omega_degrees": "angles_1",
+        "detector_distance_mm": "distanc_0 * 10",
+        "wavelength_a": "wavelen_1",
+        "pixel_mm": "0.075",
+        "theta_pixel_rad": "np.radians(increme_0)"
+    }
+}

@@ -49,7 +49,7 @@ export function usePyodide(): UsePyodideReturn {
         setStatus("ready");
       } catch (e) {
         setError(String(e));
-        setStatus("error");
+        setStatus("ready");
       }
     },
     [],

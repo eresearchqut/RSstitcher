@@ -2,9 +2,6 @@
 
 import type { WorkerMessage, WorkerResponse, ProcessParams } from "./types";
 
-// Import rsstitcher Python source as raw strings via Vite
-import mainPy from "../../../rsstitcher/main.py?raw";
-import initPy from "../../../rsstitcher/__init__.py?raw";
 import webEntryPy from "../python/web_entry.py?raw";
 
 // Pyodide types
@@ -58,7 +55,7 @@ async function init() {
 
     post({
       type: "init-progress",
-      stage: "Installing tifffile and fabio...",
+      stage: "Installing tifffile, simpleeval, and fabio...",
     });
     // Compute the app's base URL from the worker script location.
     // Worker URL is like .../assets/pyodide.worker-XXXX.js (prod) or .../src/worker/... (dev).
@@ -76,6 +73,7 @@ async function init() {
     await pyodide.runPythonAsync(`
 import micropip
 await micropip.install('tifffile')
+await micropip.install('simpleeval')
 
 # Install fabio from pre-built WASM wheel
 from pyodide.http import pyfetch
@@ -95,17 +93,16 @@ else:
       stage: "Setting up rsstitcher...",
     });
 
-    // Write rsstitcher source to virtual FS
-    mkdirp(pyodide.FS, "/rsstitcher/rsstitcher");
-    pyodide.FS.writeFile("/rsstitcher/rsstitcher/__init__.py", initPy);
-    pyodide.FS.writeFile("/rsstitcher/rsstitcher/main.py", mainPy);
-    pyodide.FS.writeFile("/rsstitcher/web_entry.py", webEntryPy);
+    // Install rsstitcher from pre-built wheel (pure Python, deps already loaded)
+    await pyodide.runPythonAsync(`
+await micropip.install('${baseUrl}/wheels/rsstitcher-0.1.0-py3-none-any.whl', deps=False)
+`);
 
-    // Import the web entry module
+    // Write web_entry bridge to virtual FS and import it
+    pyodide.FS.writeFile("/web_entry.py", webEntryPy);
     await pyodide.runPythonAsync(`
 import sys
-sys.path.insert(0, '/rsstitcher')
-sys.path.insert(0, '/rsstitcher')
+sys.path.insert(0, '/')
 import web_entry
 `);
 
@@ -152,6 +149,18 @@ for d in ['/input', '/output']:
     const azBins =
       params.azimuthalBins !== null ? String(params.azimuthalBins) : "None";
 
+    // Write custom instrument JSON to virtual FS if provided
+    const instrumentArg =
+      params.instrument === "custom" && params.customInstrumentJson
+        ? "'/custom_instrument.json'"
+        : `'${params.instrument}'`;
+    if (params.instrument === "custom" && params.customInstrumentJson) {
+      pyodide.FS.writeFile(
+        "/custom_instrument.json",
+        params.customInstrumentJson,
+      );
+    }
+
     await pyodide.runPythonAsync(`
 _result = web_entry.process(
     input_dir='/input',
@@ -162,6 +171,7 @@ _result = web_entry.process(
     blur_fraction=${params.blurFraction},
     azimuthal_bins=${azBins},
     radial_bins_str=${radialBinsStr === "None" ? "None" : `'${radialBinsStr}'`},
+    instrument=${instrumentArg},
 )
 `);
 

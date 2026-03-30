@@ -5,6 +5,8 @@ export interface ProcessParams {
   blurFraction: number;
   azimuthalBins: number | null;
   radialBins: [number, number][] | null;
+  instrument: string;
+  customInstrumentJson: string | null;
 }
 
 export interface InputFile {

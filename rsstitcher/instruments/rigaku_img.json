@@ -1,0 +1,27 @@
+{
+    "name": "Rigaku IMG",
+    "file_extension": "img",
+    "header_values": {
+        "beam_x_raw": {"header": "PXD_SPATIAL_BEAM_POSITION", "index": 0},
+        "beam_y": {"header": "PXD_SPATIAL_BEAM_POSITION", "index": 1},
+        "chi_raw": {"header": "CRYSTAL_GONIO_VALUES", "index": 1},
+        "phi_raw": {"header": "CRYSTAL_GONIO_VALUES", "index": 2},
+        "omega_raw": {"header": "CRYSTAL_GONIO_VALUES", "index": 0},
+        "start_theta": {"header": "PXD_GONIO_VALUES", "index": 1},
+        "det_dist": {"header": "PXD_GONIO_VALUES", "index": -1},
+        "wavelength": {"header": "SOURCE_WAVELENGTH", "index": -1},
+        "det_size": {"header": "PXD_DETECTOR_SIZE", "index": -1},
+        "det_dim": {"header": "PXD_DETECTOR_DIMENSIONS", "index": -1}
+    },
+    "fields": {
+        "chi_degrees": "chi_raw",
+        "phi_degrees": "phi_raw",
+        "omega_degrees": "omega_raw",
+        "detector_distance_mm": "det_dist",
+        "wavelength_a": "wavelength",
+        "pixel_mm": "det_size / det_dim",
+        "theta_pixel_rad": "np.arctan(pixel_mm / detector_distance_mm)",
+        "beam_position_x": "beam_x_raw - np.radians(start_theta) / theta_pixel_rad",
+        "beam_position_y": "beam_y"
+    }
+}
