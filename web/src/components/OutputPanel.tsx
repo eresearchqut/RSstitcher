@@ -70,6 +70,9 @@ export function OutputPanel({ result, projectName }: Props) {
           arrayData={result.arrayData}
           arrayShape={result.arrayShape}
           gridData={result.gridData}
+          mode={String(result.summary.mode ?? "symmetric")}
+          sxRange={result.summary.sx_range as [number, number]}
+          szRange={result.summary.sz_range as [number, number]}
         />
         <div className="mt-3 flex flex-wrap gap-3">
           {result.outputs.pixels_tiff && (
