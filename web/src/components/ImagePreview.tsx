@@ -222,13 +222,16 @@ export function ImagePreview({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (dragInfo.current) {
-      const dx = e.clientX - dragInfo.current.startX;
-      const dy = e.clientY - dragInfo.current.startY;
+    const drag = dragInfo.current;
+    if (drag) {
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const newPanX = drag.startPanX + dx;
+      const newPanY = drag.startPanY + dy;
       setView((prev) => ({
         ...prev,
-        panX: dragInfo.current!.startPanX + dx,
-        panY: dragInfo.current!.startPanY + dy,
+        panX: newPanX,
+        panY: newPanY,
       }));
       setTooltip(null);
       return;
