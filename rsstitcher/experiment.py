@@ -523,7 +523,7 @@ def compute_azimuthal_profile(
         g_sector = np.nansum(r_gamma[:, gamma_mask], axis=1)[: len(counts)] / counts
 
         radius = pd.Series(values)
-        gamma_cols[f"Gamma {np.degrees(lo):.1f} : {np.degrees(hi):.1f}"] = pd.Series(
+        gamma_cols[f"Chi {np.degrees(lo) - 90:.1f} : {np.degrees(hi) - 90:.1f}"] = pd.Series(
             g_sector
         )
 
@@ -549,9 +549,9 @@ def compute_radial_profiles(
 ) -> pd.DataFrame:
     """Compute radial intensity profiles from the shared R-Gamma grid.
 
-    Returns DataFrame with columns: angle (degrees), S = r_min to r_max A^-1, etc.
+    Returns DataFrame with columns: Chi (degrees), S = r_min to r_max A^-1, etc.
     """
-    result = {"angle (degrees)": np.degrees(out_gamma) - 90}
+    result = {"Chi (degrees)": np.degrees(out_gamma) - 90}
 
     for r_lo, r_hi in radial_bins:
         col_name = f"S = {r_lo} to {r_hi} A^-1"

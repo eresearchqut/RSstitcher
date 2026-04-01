@@ -109,12 +109,12 @@ def test_azimuthal_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # 1 shared Radius + 3 Gamma sector columns
+    # 1 shared Radius + 3 Chi sector columns
     assert len(header) == 4, f"Expected 4 columns, got {len(header)}: {header}"
     assert header[0] == "Radius (S^-1)"
-    assert "Gamma" in header[1]
+    assert "Chi" in header[1]
 
-    assert md5sum(csv_file) == "65bb8ecd679f9eaea0843a1199c5c5c3", (
+    assert md5sum(csv_file) == "d6265e91a990648ad3ed523ec8c0a85b", (
         "Azimuthal CSV hash mismatch"
     )
 
@@ -139,11 +139,11 @@ def test_radial_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # angle (degrees) + 1 bin column
+    # Chi (degrees) + 1 bin column
     assert len(header) == 2, f"Expected 2 columns, got {len(header)}: {header}"
-    assert header[0] == "angle (degrees)"
+    assert header[0] == "Chi (degrees)"
     assert "S = " in header[1]
 
-    assert md5sum(csv_file) == "8d8b9d9e35e5e3178bfb17ac86d5e382", (
+    assert md5sum(csv_file) == "33b6bf3ae8599566e66b72a72698f058", (
         "Radial CSV hash mismatch"
     )
