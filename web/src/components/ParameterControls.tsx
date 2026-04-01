@@ -165,13 +165,8 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <div className="col-span-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-sm text-gray-400">Radial bins</span>
-            <span className="block text-xs text-gray-500">
-              To export Debye ring profile
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400">Radial bins</span>
           <button
             onClick={() => {
               const current = params.radialBins ?? [];
@@ -183,6 +178,9 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
             + Add bin
           </button>
         </div>
+        <span className="block text-xs text-gray-500">
+          To export Debye ring profile
+        </span>
         {params.radialBins && params.radialBins.length > 0 && (
           <div className="mt-2 space-y-2">
             {params.radialBins.map((bin, i) => (
