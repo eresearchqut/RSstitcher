@@ -76,6 +76,7 @@ following directories:
 | rigaku_gid       | Rigaku img files  | [`tests/data/rigaku_gid`](tests/data/rigaku_gid)             |
 | rigaku_symmetric | Rigaku img files  | [`tests/data/rigaku_symmetric`](tests/data/rigaku_symmetric) |
 | cor_powder       | Rigaku img files  | [`tests/data/cor_powder`](tests/data/cor_powder)              |
+| alfoil_rigaku    | Rigaku img files  | [`tests/data/alfoil_rigaku`](tests/data/alfoil_rigaku)        |
 
 To run RSstitcher, and only output the results to the console. For example, with the bruker sample data:
 

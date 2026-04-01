@@ -66,6 +66,13 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
     sizeLabel: "71 MB",
     files: range(1, 9).map((i) => `WRRSM-Corundum_${pad(i, 4)}.img`),
   },
+  {
+    id: "alfoil_rigaku",
+    name: "Al Foil (Rigaku)",
+    format: "Rigaku (.img)",
+    sizeLabel: "88 MB",
+    files: range(1, 11).map((i) => `WRRSM-Alfoil2_${pad(i, 4)}.img`),
+  },
 ];
 
 export function getSampleDatasetUrl(

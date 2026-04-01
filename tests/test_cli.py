@@ -23,6 +23,9 @@ DATASETS = {
     "cor_powder": {
         "tiff_hash": "d17832b554b6141a75503836542b1074",
     },
+    "alfoil_rigaku": {
+        "tiff_hash": "d786e3a1ab54dbe1f9cd94e2512e9443",
+    },
 }
 
 
