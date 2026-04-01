@@ -146,9 +146,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
 
       <label className="block">
         <span className="text-sm text-gray-400">Zenithal bins</span>
-        <span className="block text-xs text-gray-500">
-          If requires integration to 1D
-        </span>
+        <span className="block text-xs text-gray-500">Integration to 1D</span>
         <input
           type="number"
           value={params.azimuthalBins ?? ""}

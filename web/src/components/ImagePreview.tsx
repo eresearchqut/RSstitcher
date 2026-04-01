@@ -201,8 +201,8 @@ export function ImagePreview({
       const py = (cy / h) * outRows;
       if (px < 0 || px >= outCols || py < 0 || py >= outRows) return null;
 
-      const sz = szRange[1] - (px / (outCols - 1)) * (szRange[1] - szRange[0]);
-      const sx = sxRange[1] - (py / (outRows - 1)) * (sxRange[1] - sxRange[0]);
+      const sx = sxRange[0] + (px / (outCols - 1)) * (sxRange[1] - sxRange[0]);
+      const sz = szRange[1] - (py / (outRows - 1)) * (szRange[1] - szRange[0]);
 
       return { screenX: mx, screenY: my, sz, sx };
     },
