@@ -76,14 +76,14 @@ export function OutputPanel({ result, projectName }: Props) {
             <DownloadButton
               data={result.outputs.pixels_tiff}
               filename={filenames.pixels_tiff}
-              label="Pixels TIFF"
+              label="WRRSM TIFF"
             />
           )}
           {result.outputs.grid_tiff && (
             <DownloadButton
               data={result.outputs.grid_tiff}
               filename={filenames.grid_tiff}
-              label="Grid TIFF"
+              label="S Overlay"
             />
           )}
         </div>
@@ -134,7 +134,7 @@ export function OutputPanel({ result, projectName }: Props) {
             <DownloadButton
               data={result.outputs.azimuthal_csv}
               filename={filenames.azimuthal_csv}
-              label="Azimuthal CSV"
+              label="1D Diffraction Patterns CSV"
             />
           </div>
         </div>
@@ -153,7 +153,7 @@ export function OutputPanel({ result, projectName }: Props) {
             <DownloadButton
               data={result.outputs.radial_csv}
               filename={filenames.radial_csv}
-              label="Radial CSV"
+              label="Debye ring profile CSV"
             />
           </div>
         </div>
