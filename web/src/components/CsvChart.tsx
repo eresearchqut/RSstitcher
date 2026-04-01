@@ -113,7 +113,7 @@ export function CsvChart({ data, kind, exportName }: Props) {
       embed(
         containerRef.current,
         {
-          $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+          $schema: "https://vega.github.io/schema/vega-lite/v6.json",
           width: "container",
           height: 260,
           background: "transparent",
