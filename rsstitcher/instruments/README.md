@@ -1,6 +1,6 @@
 # Custom Instrument Configs
 
-RSstitcher uses declarative JSON files to describe how detector parameters are extracted from image file headers. Built-in configs are provided for [Bruker (.gfrm)](bruker_gfrm.json) and [Rigaku (.img)](rigaku_img.json) detectors. You can add support for any detector by writing your own config file.
+RSstitcher uses declarative JSON files to describe how detector parameters are extracted from image file headers. Built-in configs are provided for [Bruker (.gfrm)](bruker_gfrm.json) and [Rigaku (.img)](rigaku_img.json) detectors. You can add support for any detector by writing your own config file, as long as the file format is [supported by fabio](https://github.com/silx-kit/fabio). RSstitcher relies on fabio to read image data and headers, so your detector's file format must be one that fabio can open.
 
 ## Config file structure
 
