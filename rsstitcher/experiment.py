@@ -470,11 +470,13 @@ def _build_polar_grid(
         }
     )
 
-    # R and Gamma grids derived from positions (using delta_s as R step)
+    # R and Gamma grids derived from positions (using delta_s/2 as R step for
+    # higher resolution 1D profiles)
+    r_step = delta_s / 2
     out_r = np.arange(
-        round(float(positions["R"].min()), n_decimals) - delta_s,
-        round(float(positions["R"].max()), n_decimals) + delta_s,
-        delta_s,
+        round(float(positions["R"].min()), n_decimals) - r_step,
+        round(float(positions["R"].max()), n_decimals) + r_step,
+        r_step,
     )
     delta_gamma = np.radians(0.5)
     out_gamma = np.arange(

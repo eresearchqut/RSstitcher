@@ -114,7 +114,7 @@ def test_azimuthal_bins(tmp_path):
     assert header[0] == "Radius (S^-1)"
     assert "Chi" in header[1]
 
-    assert md5sum(csv_file) == "d6265e91a990648ad3ed523ec8c0a85b", (
+    assert md5sum(csv_file) == "179fdc37adf0cb975c1708825a8367ef", (
         "Azimuthal CSV hash mismatch"
     )
 
