@@ -75,7 +75,6 @@ following directories:
 | bruker_symmetric | Bruker gfrm files | [`tests/data/bruker_symmetric`](tests/data/bruker_symmetric) |
 | rigaku_gid       | Rigaku img files  | [`tests/data/rigaku_gid`](tests/data/rigaku_gid)             |
 | rigaku_symmetric | Rigaku img files  | [`tests/data/rigaku_symmetric`](tests/data/rigaku_symmetric) |
-| new_data         | Rigaku img files  | [`tests/data/new_data`](tests/data/new_data)                 |
 | cor_powder       | Rigaku img files  | [`tests/data/cor_powder`](tests/data/cor_powder)              |
 
 To run RSstitcher, and only output the results to the console. For example, with the bruker sample data:

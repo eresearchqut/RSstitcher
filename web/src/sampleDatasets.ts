@@ -60,13 +60,6 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
     ),
   },
   {
-    id: "new_data",
-    name: "Rigaku (New Data)",
-    format: "Rigaku (.img)",
-    sizeLabel: "28 MB",
-    files: range(1, 6).map((i) => `image_${i}.img`),
-  },
-  {
     id: "cor_powder",
     name: "Corundum Powder",
     format: "Rigaku (.img)",
