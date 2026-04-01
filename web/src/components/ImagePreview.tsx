@@ -197,9 +197,12 @@ export function ImagePreview({
       const cx = (mx - ox - view.panX) / view.zoom;
       const cy = (my - oy - view.panY) / view.zoom;
 
-      const px = (cx / w) * outCols;
-      const py = (cy / h) * outRows;
-      if (px < 0 || px >= outCols || py < 0 || py >= outRows) return null;
+      const pxf = (cx / w) * outCols;
+      const pyf = (cy / h) * outRows;
+      if (pxf < 0 || pxf >= outCols || pyf < 0 || pyf >= outRows) return null;
+
+      const px = Math.min(Math.floor(pxf), outCols - 1);
+      const py = Math.min(Math.floor(pyf), outRows - 1);
 
       const sx = sxRange[0] + (px / (outCols - 1)) * (sxRange[1] - sxRange[0]);
       const sz = szRange[1] - (py / (outRows - 1)) * (szRange[1] - szRange[0]);
