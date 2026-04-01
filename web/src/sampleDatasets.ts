@@ -68,7 +68,7 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
   },
   {
     id: "alfoil_rigaku",
-    name: "Al Foil (Rigaku)",
+    name: "Al Foil",
     format: "Rigaku (.img)",
     sizeLabel: "88 MB",
     files: range(1, 11).map((i) => `WRRSM-Alfoil2_${pad(i, 4)}.img`),
