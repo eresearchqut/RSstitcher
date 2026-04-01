@@ -67,15 +67,46 @@ export default function App() {
   }, [pyodide.result, zipFilenames, projectName]);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="flex min-h-screen flex-col">
+      <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
       <header className="mb-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">RSstitcher</h1>
+        <h1 className="text-2xl font-bold">RSstitcher</h1>
+        <p className="mt-1 text-sm text-gray-400">
+          Wide Range Reciprocal Space Map builder running entirely in your
+          browser
+        </p>
+        <div className="mt-3 flex flex-col gap-1 text-sm text-gray-400">
+          <a
+            href="https://arxiv.org/abs/2511.08265"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-1.5 transition-colors hover:text-gray-200"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+              className="mt-0.5 shrink-0"
+            >
+              <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-4.5 14H7v-2h7.5v2zm3-4H7v-2h10.5v2zm0-4H7V7h10.5v2z" />
+            </svg>
+            <span>
+              RSstitcher: Seamless merging 2D diffraction frames for Wide Range
+              Reciprocal Space Mappings
+              <br />
+              <span className="text-gray-500">
+                Xiaodong Wang, Michael W. M. Jones, Adam Smith
+                &middot; arXiv:2511.08265
+              </span>
+            </span>
+          </a>
           <a
             href="https://github.com/eresearchqut/RSstitcher"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-200"
+            className="flex items-center gap-1.5 transition-colors hover:text-gray-200"
           >
             <svg
               viewBox="0 0 16 16"
@@ -83,16 +114,13 @@ export default function App() {
               height="16"
               fill="currentColor"
               aria-hidden="true"
+              className="shrink-0"
             >
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
             </svg>
             github.com/eresearchqut/RSstitcher
           </a>
         </div>
-        <p className="mt-1 text-sm text-gray-400">
-          Wide Range Reciprocal Space Map builder running entirely in your
-          browser
-        </p>
       </header>
 
       <StatusDisplay
@@ -162,6 +190,46 @@ export default function App() {
           <OutputPanel result={pyodide.result} projectName={projectName} />
         </div>
       )}
+
+      </div>
+
+      <footer className="mx-auto flex w-full max-w-5xl items-center gap-4 border-t border-gray-800 px-4 py-6">
+        <a
+          href="https://www.qut.edu.au"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}qut-logo.png`}
+            alt="QUT logo"
+            className="h-12"
+          />
+        </a>
+        <div className="text-sm text-gray-400">
+          <p>
+            Developed by{" "}
+            <a
+              href="https://www.qut.edu.au/research/why-qut/infrastructure"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 underline decoration-gray-600 underline-offset-2 transition-colors hover:text-gray-100"
+            >
+              Queensland University of Technology, Research Infrastructure
+            </a>
+          </p>
+          <p className="mt-1">
+            Released under the{" "}
+            <a
+              href="https://github.com/eresearchqut/RSstitcher/blob/main/LICENSE.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 underline decoration-gray-600 underline-offset-2 transition-colors hover:text-gray-100"
+            >
+              MIT License
+            </a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
