@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .bg { fill: #0a0f1a; }
+    .ring { stroke: #60a5fa; }
+    .dot { fill: #60a5fa; }
+    @media (prefers-color-scheme: light) {
+      .bg { fill: #f0f4f8; }
+      .ring { stroke: #1d4ed8; }
+      .dot { fill: #1d4ed8; }
+    }
+  </style>
+  <defs>
+    <clipPath id="c"><rect width="32" height="32" rx="6"/></clipPath>
+  </defs>
+  <rect class="bg" width="32" height="32" rx="6"/>
+  <g clip-path="url(#c)" class="ring" fill="none" stroke-linecap="round">
+    <circle cx="16" cy="32" r="6" stroke-width="2.5" opacity="1"/>
+    <circle cx="16" cy="32" r="12" stroke-width="2.5" opacity="0.75"/>
+    <circle cx="16" cy="32" r="18" stroke-width="2.5" opacity="0.5"/>
+    <circle cx="16" cy="32" r="24" stroke-width="2.5" opacity="0.3"/>
+  </g>
+  <circle class="dot" cx="16" cy="32" r="1.5"/>
+</svg>
