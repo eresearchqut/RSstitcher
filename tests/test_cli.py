@@ -20,7 +20,7 @@ DATASETS = {
     "rigaku_symmetric": {
         "tiff_hash": "956ab201cd97d97318a41a68c18bb51d",
     },
-"cor_powder": {
+    "cor_powder": {
         "tiff_hash": "d17832b554b6141a75503836542b1074",
     },
 }

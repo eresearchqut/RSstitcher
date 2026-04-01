@@ -525,8 +525,8 @@ def compute_azimuthal_profile(
         g_sector = np.nansum(r_gamma[:, gamma_mask], axis=1)[: len(counts)] / counts
 
         radius = pd.Series(values)
-        gamma_cols[f"Chi {np.degrees(lo) - 90:.1f} : {np.degrees(hi) - 90:.1f}"] = pd.Series(
-            g_sector
+        gamma_cols[f"Chi {np.degrees(lo) - 90:.1f} : {np.degrees(hi) - 90:.1f}"] = (
+            pd.Series(g_sector)
         )
 
     # Single shared Radius column — all sectors share the same non-NaN radii
