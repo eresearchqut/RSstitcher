@@ -146,7 +146,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
 
       <label className="block">
         <span className="text-sm text-gray-400">Zenithal bins</span>
-        <span className="block text-xs text-gray-500">Integration to 1D</span>
+        <span className="block text-xs text-gray-500">For integration</span>
         <input
           type="number"
           value={params.azimuthalBins ?? ""}
@@ -164,7 +164,9 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
 
       <div className="col-span-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">Radial bins</span>
+          <span className="text-sm text-gray-400">
+            Reciprocal space S bins (S = 1/d)
+          </span>
           <button
             onClick={() => {
               const current = params.radialBins ?? [];
@@ -210,6 +212,7 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
                   disabled={disabled}
                   className="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"
                 />
+                <span className="text-xs text-gray-500">Å⁻¹</span>
                 <button
                   onClick={() => {
                     const bins = params.radialBins!.filter((_, j) => j !== i);
