@@ -6,6 +6,7 @@ import { FileSelector } from "./components/FileSelector";
 import { ParameterControls } from "./components/ParameterControls";
 import { StatusDisplay } from "./components/StatusDisplay";
 import { OutputPanel } from "./components/OutputPanel";
+import { CLICommand } from "./components/CLICommand";
 import { OUTPUT_SUFFIXES, expandTemplate } from "./outputUtils";
 import type { ProcessParams } from "./worker/types";
 
@@ -130,7 +131,7 @@ export default function App() {
         />
 
         <div className="mt-6 grid gap-6 md:grid-cols-[1fr_2fr]">
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div>
               <h2 className="mb-2 text-sm font-medium text-gray-400">
                 Input Data
@@ -179,7 +180,7 @@ export default function App() {
             )}
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h2 className="mb-2 text-sm font-medium text-gray-400">
               Parameters
             </h2>
@@ -190,6 +191,8 @@ export default function App() {
             />
           </div>
         </div>
+
+        <CLICommand params={params} projectName={projectName} />
 
         {pyodide.result && (
           <div className="mt-8 border-t border-gray-800 pt-6">
