@@ -214,7 +214,22 @@ _result = web_entry.process(
     const transferables = [arrayBuf, gridBuf, ...Object.values(outputs)];
     self.postMessage(response, transferables as unknown as Transferable[]);
   } catch (e) {
-    post({ type: "error", error: `Processing failed: ${e}` });
+    const msg = String(e);
+    if (
+      msg.includes("_ArrayMemoryError") ||
+      msg.includes("Unable to allocate")
+    ) {
+      post({
+        type: "error",
+        error:
+          "Out of memory. This dataset is too large for the browser to process. " +
+          "The web version runs entirely in the browser (WebAssembly) and is capped at around 2-4 GB of memory. " +
+          "Please use the CLI version instead. See https://github.com/eresearchqut/RSstitcher for installation instructions.\n\n" +
+          `Original error:\n${msg}`,
+      });
+    } else {
+      post({ type: "error", error: `Processing failed: ${e}` });
+    }
   }
 }
 

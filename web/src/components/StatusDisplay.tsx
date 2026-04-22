@@ -6,6 +6,25 @@ interface Props {
   error: string | null;
 }
 
+function renderWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline hover:text-red-300"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 export function StatusDisplay({ status, progressStage, error }: Props) {
   if (status === "idle") return null;
 
@@ -37,7 +56,7 @@ export function StatusDisplay({ status, progressStage, error }: Props) {
         <div className="text-red-400">
           <p className="font-medium">Error</p>
           <pre className="mt-1 rounded bg-red-950/50 p-2 text-xs break-all whitespace-pre-wrap">
-            {error}
+            {renderWithLinks(error)}
           </pre>
         </div>
       )}
