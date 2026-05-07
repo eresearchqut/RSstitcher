@@ -747,7 +747,7 @@ def run_experiment(
 
     if radial_bins is not None and len(radial_bins) > 0:
         result["radial_profiles"] = compute_radial_profiles(
-            r_gamma, out_r, out_gamma, positions, radial_bins, n_decimals
+            r_gamma, out_r, out_gamma, radial_bins, n_decimals
         )
 
     return result
