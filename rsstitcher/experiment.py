@@ -544,6 +544,7 @@ def compute_radial_profiles(
     r_gamma: np.ndarray,
     out_r: np.ndarray,
     out_gamma: np.ndarray,
+    positions: pd.DataFrame,
     radial_bins: list[tuple[float, float]],
     n_decimals: int,
 ) -> pd.DataFrame:
@@ -556,8 +557,14 @@ def compute_radial_profiles(
     for r_lo, r_hi in radial_bins:
         col_name = f"S = {r_lo} to {r_hi} A^-1"
         mask = (out_r >= r_lo) & (out_r < r_hi)
+
+        n_sector = positions[(positions["R"] >= r_lo) & (positions["R"] < r_hi)]
+        values, counts = np.unique(
+            n_sector["Gamma"].to_numpy(), return_counts=True, equal_nan=False
+        )
+
         if mask.any():
-            result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)
+            result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)[: len(counts)] / counts
         else:
             result[col_name] = np.full(len(out_gamma), np.nan)
 
@@ -740,7 +747,7 @@ def run_experiment(
 
     if radial_bins is not None and len(radial_bins) > 0:
         result["radial_profiles"] = compute_radial_profiles(
-            r_gamma, out_r, out_gamma, radial_bins, n_decimals
+            r_gamma, out_r, out_gamma, positions, radial_bins, n_decimals
         )
 
     return result
