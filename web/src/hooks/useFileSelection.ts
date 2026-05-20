@@ -112,14 +112,42 @@ export function useFileSelection(
   const loadSampleDataset = useCallback(
     async (dataset: SampleDataset) => {
       setSampleLoading(true);
-      setSampleProgress({ loaded: 0, total: dataset.files.length });
+      setSampleProgress({ loaded: 0, total: 0 });
       setSampleError(null);
       setFiles([]);
       setFileCount(0);
       setTotalSize(0);
 
       try {
+        // Phase 1: HEAD each file in parallel to compute the total byte count.
+        const sizes = await Promise.all(
+          dataset.files.map(async (filePath) => {
+            const url = getSampleDatasetUrl(dataset.id, filePath);
+            const response = await fetch(url, { method: "HEAD" });
+            if (!response.ok) {
+              throw new Error(`Failed to HEAD ${filePath}: ${response.status}`);
+            }
+            const len = response.headers.get("Content-Length");
+            return len ? parseInt(len, 10) : 0;
+          }),
+        );
+        const total = sizes.reduce((a, b) => a + b, 0);
+        setSampleProgress({ loaded: 0, total });
+
+        // Phase 2: Stream each file in parallel, batching UI updates via rAF
+        // so thousands of chunk callbacks across parallel downloads don't
+        // thrash React renders.
         let loaded = 0;
+        let rafPending = false;
+        const scheduleProgressUpdate = () => {
+          if (rafPending) return;
+          rafPending = true;
+          requestAnimationFrame(() => {
+            rafPending = false;
+            setSampleProgress({ loaded, total });
+          });
+        };
+
         const inputFiles = await Promise.all(
           dataset.files.map(async (filePath) => {
             const url = getSampleDatasetUrl(dataset.id, filePath);
@@ -129,12 +157,34 @@ export function useFileSelection(
                 `Failed to fetch ${filePath}: ${response.status}`,
               );
             }
-            const data = await response.arrayBuffer();
-            loaded++;
-            setSampleProgress({ loaded, total: dataset.files.length });
+            if (!response.body) {
+              const data = await response.arrayBuffer();
+              loaded += data.byteLength;
+              scheduleProgressUpdate();
+              return { path: filePath, data };
+            }
+            const reader = response.body.getReader();
+            const chunks: Uint8Array[] = [];
+            let received = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              received += value.byteLength;
+              loaded += value.byteLength;
+              scheduleProgressUpdate();
+            }
+            const data = new ArrayBuffer(received);
+            const view = new Uint8Array(data);
+            let offset = 0;
+            for (const chunk of chunks) {
+              view.set(chunk, offset);
+              offset += chunk.byteLength;
+            }
             return { path: filePath, data };
           }),
         );
+        setSampleProgress({ loaded, total });
 
         setFiles(inputFiles);
         setFileCount(inputFiles.length);

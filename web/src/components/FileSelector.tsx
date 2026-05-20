@@ -89,9 +89,36 @@ export function FileSelector({ fileSelection, disabled }: Props) {
           </button>
         </div>
         {sampleLoading && sampleProgress && (
-          <p className="mt-1 text-xs text-blue-400">
-            Downloading... {sampleProgress.loaded}/{sampleProgress.total} files
-          </p>
+          <div className="mt-1">
+            <div className="flex justify-between text-xs text-blue-400">
+              <span>
+                {sampleProgress.total === 0 ? "Preparing..." : "Downloading..."}
+              </span>
+              {sampleProgress.total > 0 && (
+                <span>
+                  {formatBytes(sampleProgress.loaded)} /{" "}
+                  {formatBytes(sampleProgress.total)}
+                </span>
+              )}
+            </div>
+            <div
+              className="mt-1 h-1 w-full overflow-hidden rounded bg-gray-700"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={sampleProgress.total || 1}
+              aria-valuenow={sampleProgress.loaded}
+            >
+              <div
+                className="h-full bg-blue-500 transition-[width] duration-100"
+                style={{
+                  width:
+                    sampleProgress.total > 0
+                      ? `${Math.min(100, (sampleProgress.loaded / sampleProgress.total) * 100)}%`
+                      : "0%",
+                }}
+              />
+            </div>
+          </div>
         )}
         {sampleError && (
           <p className="mt-1 text-xs text-red-400">{sampleError}</p>
