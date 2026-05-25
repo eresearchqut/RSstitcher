@@ -564,7 +564,9 @@ def compute_radial_profiles(
         )
 
         if mask.any():
-            result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)[: len(counts)] / counts
+            result[col_name] = (
+                np.nanmax(r_gamma[mask, :], axis=0)[: len(counts)] / counts
+            )
         else:
             result[col_name] = np.full(len(out_gamma), np.nan)
 
