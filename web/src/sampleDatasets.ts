@@ -1,5 +1,8 @@
-const GITHUB_RAW_BASE =
-  "https://raw.githubusercontent.com/eresearchqut/RSstitcher/main/tests/data";
+// Sample datasets are served via jsDelivr's CDN mirror of the GitHub repo
+// rather than raw.githubusercontent.com, which has no SLA and intermittently
+// returns transient 400s on cold-cache fetches under parallel load.
+const SAMPLE_DATA_BASE =
+  "https://cdn.jsdelivr.net/gh/eresearchqut/RSstitcher@main/tests/data";
 
 function range(start: number, end: number): number[] {
   return Array.from({ length: end - start }, (_, i) => start + i);
@@ -79,5 +82,5 @@ export function getSampleDatasetUrl(
   datasetId: string,
   filePath: string,
 ): string {
-  return `${GITHUB_RAW_BASE}/${datasetId}/${filePath}`;
+  return `${SAMPLE_DATA_BASE}/${datasetId}/${filePath}`;
 }
