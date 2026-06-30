@@ -206,11 +206,12 @@ export default function App() {
           href="https://www.qut.edu.au"
           target="_blank"
           rel="noopener noreferrer"
+          className="shrink-0"
         >
           <img
             src={`${import.meta.env.BASE_URL}qut-logo.png`}
             alt="QUT logo"
-            className="h-12"
+            className="h-12 w-auto"
           />
         </a>
         <div className="text-sm text-gray-400">
