@@ -2,10 +2,12 @@ import type {
   WorkerMessage,
   WorkerResponse,
   ProcessParams,
+  ProcessLogRecord,
   InputFile,
 } from "./types";
 
 type ProgressCallback = (stage: string) => void;
+type LogCallback = (record: ProcessLogRecord) => void;
 
 export interface ProcessResult {
   outputs: Record<string, ArrayBuffer>;
@@ -53,11 +55,15 @@ export class WorkerClient {
   async process(
     files: InputFile[],
     params: ProcessParams,
+    onLog?: LogCallback,
   ): Promise<ProcessResult> {
     return new Promise((resolve, reject) => {
       const handler = (event: MessageEvent<WorkerResponse>) => {
         const msg = event.data;
         switch (msg.type) {
+          case "process-log":
+            onLog?.(msg.record);
+            break;
           case "process-complete":
             this.worker.removeEventListener("message", handler);
             resolve({

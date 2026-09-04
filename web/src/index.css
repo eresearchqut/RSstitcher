@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+/* Overlaid range inputs for RangeSlider: only the thumbs take the pointer. */
+.range-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  pointer-events: none;
+}
+.range-thumb::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.range-thumb::-moz-range-track {
+  background: transparent;
+}
+.range-thumb::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-blue-500);
+  border: 2px solid var(--color-gray-900);
+  cursor: pointer;
+}
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--color-blue-500);
+  border: 2px solid var(--color-gray-900);
+  cursor: pointer;
+}
+.range-thumb:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-blue-300);
+}
+.range-thumb:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-blue-300);
+}

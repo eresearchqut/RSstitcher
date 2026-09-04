@@ -8,6 +8,7 @@ dependencies = [
     "fabio>=2024.9.0",
     "numpy>=2.3.3",
     "pandas>=2.3.3",
+    "scikit-image>=0.26.0",
     "scipy>=1.16.2",
     "simpleeval>=1.0.7",
     "tifffile>=2025.9.30",

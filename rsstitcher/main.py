@@ -36,7 +36,8 @@ def _print_results(
 {"Pixel size":{pad_length}} {result["experiment"].pixel_mm} mm
 {"Theta pixel":{pad_length}} {np.degrees(result["experiment"].theta_pixel_rad):.3f} degrees
 {"Phi tolerance":{pad_length}} {result["experiment"].phi_tolerance_deg} degrees
-{"Blur":{pad_length}} {result["experiment"].blur_pixels} pixels
+{"Blur":{pad_length}} {result["experiment"].blur_pixels if result["mode"] == "gid" else 0} pixels
+{"Beta":{pad_length}} {result["beta_deg"]} degrees
 {"Delta s":{pad_length}} {result["experiment"].delta_s} Å⁻¹
 {"Rounding":{pad_length}} {result["experiment"].n_decimals} decimal places
 {"Scaling":{pad_length}} {result["experiment"].scale}
@@ -129,7 +130,7 @@ Template variables:
         type=str,
         choices=["linear", "log", "sqrt"],
         default="linear",
-        help="Intensity scaling mode to apply after baseline subtraction and before blur. Default: linear",
+        help="Intensity scaling mode to apply to raw detector values before blur. Default: linear",
     )
     parser.add_argument(
         "--phi-tolerance",
@@ -141,14 +142,20 @@ Template variables:
         "--blur-fraction",
         type=float,
         default=0.1,
-        help="Fraction of pixels to blur after scaling. Use 0 to disable blurring. Default: 0.1",
+        help="Fraction of pixels to blur after scaling. Only applied in GID mode.\nUse 0 to disable blurring. Default: 0.1",
+    )
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=None,
+        help="Beta cutoff angle in degrees; pixels with sin(beta) below this are dropped. Default: 1.5",
     )
     parser.add_argument(
         "--azimuthal-bins",
         type=int,
         default=None,
         metavar="N",
-        help="Number of azimuthal sectors for averaging. Enables azimuthal_csv output.",
+        help="Number of azimuthal sectors for averaging. Enables azimuthal_csv output.\nSymmetric scans only.",
     )
     parser.add_argument(
         "--radial-bins",
@@ -156,7 +163,7 @@ Template variables:
         type=str,
         default=None,
         metavar="MIN,MAX",
-        help="Radial bins as MIN,MAX pairs (e.g., --radial-bins 0.5,1.0 1.0,2.0). Enables radial_csv output.",
+        help="Radial bins as MIN,MAX pairs (e.g., --radial-bins 0.5,1.0 1.0,2.0). Enables radial_csv output.\nSymmetric scans only.",
     )
     instrument_group = parser.add_mutually_exclusive_group()
     instrument_group.add_argument(
@@ -210,12 +217,14 @@ Template variables:
         scale=args.scale,
         phi_tolerance=args.phi_tolerance,
         blur_fraction=args.blur_fraction,
+        beta=args.beta,
         azimuthal_bins=args.azimuthal_bins,
         radial_bins=radial_bins,
         instruments=instruments,
     )
     end_time = time.perf_counter()
     written_files = []
+    profile_outputs = {"azimuthal_csv", "radial_csv", "radial_overlay_tiff"}
 
     if args.write:
         for write_arg in args.write:
@@ -224,6 +233,11 @@ Template variables:
             except ValueError:
                 raise ValueError(f"Invalid --write argument: {write_arg}")
             out_path = out_path.format(**result["experiment"].__dict__)
+            if output in profile_outputs and result["mode"] == "gid":
+                raise ValueError(
+                    f"{output} is only available for symmetric scans; "
+                    f"this scan resolved to {result['mode']} mode"
+                )
             if output == "pixels_tiff":
                 write_pixels_tiff(
                     file_path=out_path,
@@ -247,7 +261,10 @@ Template variables:
                 logging.getLogger(__name__).info(f"Wrote grid TIFF to {out_path}")
             elif output == "experiment_json":
                 write_experiment_json(
-                    file_path=out_path, experiment=result["experiment"]
+                    file_path=out_path,
+                    experiment=result["experiment"],
+                    mode=result["mode"],
+                    beta_deg=result["beta_deg"],
                 )
                 logging.getLogger(__name__).info(f"Wrote experiment JSON to {out_path}")
             elif output == "azimuthal_csv":

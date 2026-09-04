@@ -28,12 +28,20 @@ function buildCommand(params: ProcessParams, projectName: string): string {
   lines.push(`--mode ${params.mode}`);
   lines.push(`--scale ${params.scale}`);
   lines.push(`--phi-tolerance ${params.phiTolerance}`);
-  lines.push(`--blur-fraction ${params.blurFraction}`);
-  if (params.azimuthalBins != null) {
+  if (params.mode !== "symmetric") {
+    lines.push(`--blur-fraction ${params.blurFraction}`);
+  }
+  lines.push(`--beta ${params.beta}`);
+  // Profiles are refused on GID runs, so leave the flags and writes out.
+  const profiles = params.mode !== "gid";
+  const azimuthal = profiles && params.azimuthalBins != null;
+  const radial =
+    profiles && params.radialBins != null && params.radialBins.length > 0;
+  if (azimuthal) {
     lines.push(`--azimuthal-bins ${params.azimuthalBins}`);
   }
-  if (params.radialBins && params.radialBins.length > 0) {
-    const pairs = params.radialBins.map(([min, max]) => `${min},${max}`);
+  if (radial) {
+    const pairs = params.radialBins!.map(([min, max]) => `${min},${max}`);
     lines.push(`--radial-bins ${pairs.join(" ")}`);
   }
   if (params.instrument === "gfrm" || params.instrument === "img") {
@@ -51,10 +59,10 @@ function buildCommand(params: ProcessParams, projectName: string): string {
     ["grid_tiff", makePath(OUTPUT_SUFFIXES.grid_tiff)],
     ["experiment_json", makePath(OUTPUT_SUFFIXES.experiment_json)],
   ];
-  if (params.azimuthalBins != null) {
+  if (azimuthal) {
     writes.push(["azimuthal_csv", makePath(OUTPUT_SUFFIXES.azimuthal_csv)]);
   }
-  if (params.radialBins && params.radialBins.length > 0) {
+  if (radial) {
     writes.push(["radial_csv", makePath(OUTPUT_SUFFIXES.radial_csv)]);
   }
   for (const [key, path] of writes) {

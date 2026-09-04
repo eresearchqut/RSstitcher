@@ -2,7 +2,11 @@
 
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = collect_submodules("fabio")
+hiddenimports = (
+    collect_submodules("fabio")
+    + collect_submodules("skimage.draw")
+    + collect_submodules("skimage._shared")
+)
 
 
 a = Analysis(

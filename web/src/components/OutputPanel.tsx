@@ -22,6 +22,7 @@ const PARAM_LABELS: Record<string, string> = {
   delta_s: "Delta s",
   n_decimals: "Rounding",
   blur_pixels: "Blur",
+  beta_deg: "Beta",
   scale: "Scale",
   sx_range: "Sx range",
   sz_range: "Sz range",
@@ -49,6 +50,7 @@ function formatValue(key: string, value: unknown): string {
   if (key === "delta_s") return `${value} \u00C5\u207B\u00B9`;
   if (key === "n_decimals") return `${value} decimal places`;
   if (key === "blur_pixels") return `${value} px`;
+  if (key === "beta_deg") return `${value}\u00B0`;
   return String(value);
 }
 
