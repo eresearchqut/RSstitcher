@@ -438,17 +438,84 @@ export function ImagePreview({
           lut={colormap.lut}
           low={bounds[0]}
           high={bounds[1]}
+          percentiles={percentiles}
           format={(v) => formatIntensity(v, 3)}
         />
       </div>
 
       {/* Controls */}
       <div
-        className={`mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 ${isFullscreen ? "shrink-0 px-4 pt-2 pb-3" : ""}`}
+        className={`mt-2 space-y-2 ${isFullscreen ? "shrink-0 px-4 pt-2 pb-3" : ""}`}
       >
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-center gap-3">
+            <span className="shrink-0 text-xs text-gray-500">
+              Intensity window
+            </span>
+            <span className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => nudgeWindow(WINDOW_STEP)}
+                disabled={percentiles[0] === percentiles[1]}
+                title={`Move both ends inward by ${WINDOW_STEP} points`}
+                className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
+              >
+                Narrow
+              </button>
+              <button
+                type="button"
+                onClick={() => nudgeWindow(-WINDOW_STEP)}
+                disabled={percentiles[0] === 0 && percentiles[1] === 100}
+                title={`Move both ends outward by ${WINDOW_STEP} points`}
+                className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
+              >
+                Widen
+              </button>
+              <button
+                type="button"
+                onClick={() => setPercentiles(DEFAULT_PERCENTILES)}
+                disabled={isDefaultWindow}
+                title={`Back to ${DEFAULT_PERCENTILES[0]}% to ${DEFAULT_PERCENTILES[1]}%`}
+                className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
+              >
+                Reset
+              </button>
+            </span>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-500">
+            Colour map
+            <select
+              value={colormap.id}
+              onChange={(e) => setColormapId(e.target.value)}
+              className="rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-300"
+            >
+              {COLORMAPS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-gray-500">
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={(e) => setShowGrid(e.target.checked)}
+              className="rounded"
+            />
+            Show grid overlay{" "}
+            <span className="text-xs text-gray-500">
+              (Reciprocal Space Scale S = 1/d, {"\u0394"}S = 0.1{" "}
+              {"\u00C5\u207B\u00B9"})
+            </span>
+          </label>
+        </div>
+        {/* The slider gets its own line, with each bound's readout on its
+            side; the min-widths keep the track from resizing as the readout
+            text changes. */}
         <div className="flex items-center gap-3">
-          <span className="shrink-0 text-xs text-gray-500">
-            Intensity window
+          <span className="min-w-[18ch] shrink-0 text-right text-xs text-gray-400 tabular-nums">
+            black &le; {percentiles[0]}% ({formatIntensity(bounds[0], 3)})
           </span>
           <RangeSlider
             min={0}
@@ -457,71 +524,12 @@ export function ImagePreview({
             value={percentiles}
             onChange={setPercentiles}
             labels={["Lower percentile", "Upper percentile"]}
-            className="w-48"
+            className="min-w-0 flex-1"
           />
-          <span className="text-xs text-gray-400 tabular-nums">
-            {percentiles[0]}% to {percentiles[1]}%
-          </span>
-          <span className="text-xs text-gray-500 tabular-nums">
-            ({formatIntensity(bounds[0], 3)} to {formatIntensity(bounds[1], 3)})
-          </span>
-          <span className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => nudgeWindow(WINDOW_STEP)}
-              disabled={percentiles[0] === percentiles[1]}
-              title={`Move both ends inward by ${WINDOW_STEP} points`}
-              className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
-            >
-              Narrow
-            </button>
-            <button
-              type="button"
-              onClick={() => nudgeWindow(-WINDOW_STEP)}
-              disabled={percentiles[0] === 0 && percentiles[1] === 100}
-              title={`Move both ends outward by ${WINDOW_STEP} points`}
-              className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
-            >
-              Widen
-            </button>
-            <button
-              type="button"
-              onClick={() => setPercentiles(DEFAULT_PERCENTILES)}
-              disabled={isDefaultWindow}
-              title={`Back to ${DEFAULT_PERCENTILES[0]}% to ${DEFAULT_PERCENTILES[1]}%`}
-              className="rounded border border-gray-700 px-1.5 py-0.5 text-xs text-gray-400 hover:text-white disabled:text-gray-600 disabled:hover:text-gray-600"
-            >
-              Reset
-            </button>
+          <span className="min-w-[18ch] shrink-0 text-xs text-gray-400 tabular-nums">
+            saturated &ge; {percentiles[1]}% ({formatIntensity(bounds[1], 3)})
           </span>
         </div>
-        <label className="flex items-center gap-2 text-xs text-gray-500">
-          Colour map
-          <select
-            value={colormap.id}
-            onChange={(e) => setColormapId(e.target.value)}
-            className="rounded border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-300"
-          >
-            {COLORMAPS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-xs text-gray-500">
-          <input
-            type="checkbox"
-            checked={showGrid}
-            onChange={(e) => setShowGrid(e.target.checked)}
-            className="rounded"
-          />
-          Show grid overlay{" "}
-          <span className="text-xs text-gray-500">
-            (Reciprocal Space Scale S = 1/d, {"\u0394"}S = 0.1{" "}
-            {"\u00C5\u207B\u00B9"})
-          </span>
-        </label>
       </div>
     </div>
   );
