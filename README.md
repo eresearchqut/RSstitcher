@@ -1,12 +1,10 @@
 # RSstitcher
 
-RSstitcher is a Python library and command-line interface program for seamless merging of 2D diffraction frames for Wide
-Range
-Reciprocal Space Mapping.
+RSstitcher is a Python library and command-line interface program for merging 2D diffraction frames for Wide Range Reciprocal Space Mapping.
 
-## Quick Start
+## Quick start
 
-**Try it in your browser first — no installation needed:**
+**Try it in your browser first without installing anything:**
 
 The easiest way to use RSstitcher is the [web version](https://eresearchqut.github.io/RSstitcher/). It runs entirely in your browser using WebAssembly. Data stays on your machine and is never uploaded to any server.
 
@@ -40,7 +38,7 @@ See the instructions below for more details.
 
 - Requires [Python 3.13+](https://www.python.org/downloads/release/python-3139/)
 - Runs on Linux, macOS, and Windows.
-- Typically uses up to 1GB of RAM, but may require more depending on the size of the experiment data.
+- Uses under 1 GB of RAM on the bundled datasets (frames are processed one at a time, so memory scales with the output map rather than the number of frames).
 
 ## Supported data formats
 
@@ -77,6 +75,11 @@ following directories:
 | rigaku_symmetric | Rigaku img files  | [`tests/data/rigaku_symmetric`](tests/data/rigaku_symmetric) |
 | cor_powder       | Rigaku img files  | [`tests/data/cor_powder`](tests/data/cor_powder)              |
 | alfoil_rigaku    | Rigaku img files  | [`tests/data/alfoil_rigaku`](tests/data/alfoil_rigaku)        |
+| bruker_symmetric_phi0 | Bruker gfrm files | [`tests/data/bruker_symmetric_phi0`](tests/data/bruker_symmetric_phi0) |
+| nist_srm1976c    | Rigaku img files  | [`tests/data/nist_srm1976c`](tests/data/nist_srm1976c)        |
+| zircon           | Rigaku img files  | [`tests/data/zircon`](tests/data/zircon)                      |
+| rigaku_si_wafer_a | Rigaku img files | [`tests/data/rigaku_si_wafer_a`](tests/data/rigaku_si_wafer_a) |
+| rigaku_si_wafer_b | Rigaku img files | [`tests/data/rigaku_si_wafer_b`](tests/data/rigaku_si_wafer_b) |
 
 To run RSstitcher, and only output the results to the console. For example, with the bruker sample data:
 
@@ -94,23 +97,25 @@ Experiment parameters:
 Type                           gfrm
 Data size                      192 x 1101 pixels
 Detector distance              280.0 mm
-Phi 0                          0.0 degrees
+Phi 0                          90.0 degrees
 Wavelength                     1.78897 Å
 Pixel size                     0.075 mm
 Theta pixel                    0.100 degrees
 Phi tolerance                  5.0 degrees
-Blur                           19 pixels
+Blur                           0 pixels
+Beta                           1.5 degrees
 Delta s                        0.002 Å⁻¹
 Rounding                       3 decimal places
 Scaling                        linear
+Mode                           symmetric
 
 Results:
 --------
-Sx range                       -0.980 to 0.978 Å⁻¹
-Sz range                       -0.004 to 0.992 Å⁻¹
-Number of pixels               980 x 499 pixels
-Number of images processed     162 images
-Time taken                     1.44 seconds
+Sx range                       -0.979 to 0.977 Å⁻¹
+Sz range                       -0.002 to 0.992 Å⁻¹
+Number of pixels               979 x 498 pixels
+Number of images processed     100 images
+Time taken                     2.79 seconds
 ```
 
 To write the combined 2D reciprocal space map to a file, use the `--write` option. For example, creating a file called
@@ -135,18 +140,20 @@ Wavelength                     1.78897 Å
 Pixel size                     0.075 mm
 Theta pixel                    0.100 degrees
 Phi tolerance                  5.0 degrees
-Blur                           19 pixels
+Blur                           0 pixels
+Beta                           1.5 degrees
 Delta s                        0.002 Å⁻¹
 Rounding                       3 decimal places
 Scaling                        linear
+Mode                           symmetric
 
 Results:
 --------
-Sx range                       -0.962 to 0.972 Å⁻¹
-Sz range                       -0.004 to 0.990 Å⁻¹
-Number of pixels               968 x 498 pixels
+Sx range                       -0.979 to 0.977 Å⁻¹
+Sz range                       -0.002 to 0.992 Å⁻¹
+Number of pixels               979 x 498 pixels
 Number of images processed     100 images
-Time taken                     0.42 seconds
+Time taken                     2.86 seconds
 
 Files written:
 --------------
@@ -174,18 +181,20 @@ Wavelength                     1.78897 Å
 Pixel size                     0.075 mm
 Theta pixel                    0.100 degrees
 Phi tolerance                  5.0 degrees
-Blur                           19 pixels
+Blur                           0 pixels
+Beta                           1.5 degrees
 Delta s                        0.002 Å⁻¹
 Rounding                       3 decimal places
 Scaling                        linear
+Mode                           symmetric
 
 Results:
 --------
-Sx range                       -0.962 to 0.972 Å⁻¹
-Sz range                       -0.004 to 0.990 Å⁻¹
-Number of pixels               968 x 498 pixels
+Sx range                       -0.979 to 0.977 Å⁻¹
+Sz range                       -0.002 to 0.992 Å⁻¹
+Number of pixels               979 x 498 pixels
 Number of images processed     100 images
-Time taken                     0.46 seconds
+Time taken                     2.88 seconds
 
 Files written:
 --------------
@@ -216,9 +225,9 @@ usage: rsstitcher [-h] [-q] [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
                   [--write OUTPUT=PATH] [--circles [CIRCLES ...]]
                   [--mode {auto,symmetric,gid}] [--scale {linear,log,sqrt}]
                   [--phi-tolerance PHI_TOLERANCE]
-                  [--blur-fraction BLUR_FRACTION] [--azimuthal-bins N]
-                  [--radial-bins MIN,MAX [MIN,MAX ...]] [--instrument NAME |
-                  --instrument-path PATH]
+                  [--blur-fraction BLUR_FRACTION] [--beta BETA]
+                  [--azimuthal-bins N] [--radial-bins MIN,MAX [MIN,MAX ...]]
+                  [--instrument NAME | --instrument-path PATH]
                   path
 
 Process 2D diffraction images into a 2D reciprocal space map.
@@ -232,12 +241,12 @@ options:
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         Set the logging level
   --write OUTPUT=PATH   Write output to a custom path or template
-
+                        
                         Format: OUTPUT=PATH
                         Outputs: pixels_tiff, grid_tiff, experiment_json, azimuthal_csv, radial_csv, radial_overlay_tiff.
-
+                        
                         Example: --write pixels_tiff=project_{delta_s}_S.tiff --write grid_tiff=overlays.tiff
-
+                        
                         Template variables:
                             - type
                             - data_size
@@ -250,7 +259,7 @@ options:
                             - n_decimals
                             - blur_pixels
                             - scale
-
+                        
   --circles [CIRCLES ...]
                         Overlay radial circles in Å⁻¹ on the output grid.
                         Provide a list of radii (e.g., --circles 0.5 1.0 1.5), or pass -1 to draw
@@ -259,19 +268,22 @@ options:
   --mode {auto,symmetric,gid}
                         Coordinate transform mode. 'auto' detects from omega range. Default: auto
   --scale {linear,log,sqrt}
-                        Intensity scaling mode to apply after baseline subtraction and before blur. Default: linear
+                        Intensity scaling mode to apply to raw detector values before blur. Default: linear
   --phi-tolerance PHI_TOLERANCE
                         Allowed tolerance for phi angle mirroring, in degrees. Default: 5.0 degrees
   --blur-fraction BLUR_FRACTION
-                        Fraction of pixels to blur after scaling. Use 0 to disable blurring. Default: 0.1
+                        Fraction of pixels to blur after scaling. Only applied in GID mode.
+                        Use 0 to disable blurring. Default: 0.1
+  --beta BETA           Beta cutoff angle in degrees; pixels with sin(beta) below this are dropped. Default: 1.5
   --azimuthal-bins N    Number of azimuthal sectors for averaging. Enables azimuthal_csv output.
+                        Symmetric scans only.
   --radial-bins MIN,MAX [MIN,MAX ...]
                         Radial bins as MIN,MAX pairs (e.g., --radial-bins 0.5,1.0 1.0,2.0). Enables radial_csv output.
+                        Symmetric scans only.
   --instrument NAME     Use a specific built-in instrument instead of auto-detecting.
                         Accepts a name or file extension (e.g. 'gfrm', 'Bruker GFRM', 'img', 'Rigaku IMG').
   --instrument-path PATH
                         Path to a custom instrument config JSON file.
-
 ```
 
 You can combine options to create more complex outputs. For example:
@@ -296,17 +308,19 @@ Pixel size                     0.1 mm
 Theta pixel                    0.047 degrees
 Phi tolerance                  10.0 degrees
 Blur                           155 pixels
+Beta                           1.5 degrees
 Delta s                        0.001 Å⁻¹
 Rounding                       3 decimal places
 Scaling                        sqrt
+Mode                           gid
 
 Results:
 --------
-Sx range                       -0.466 to 0.467 Å⁻¹
-Sz range                       -0.478 to 0.181 Å⁻¹
-Number of pixels               934 x 660 pixels
+Sx range                       -0.451 to 0.450 Å⁻¹
+Sz range                       -0.001 to 0.454 Å⁻¹
+Number of pixels               902 x 456 pixels
 Number of images processed     4 images
-Time taken                     1.78 seconds
+Time taken                     1.86 seconds
 
 Files written:
 --------------
@@ -320,11 +334,11 @@ The output files are:
 gid_output.tiff  gid_overlay.tiff
 ```
 
-## Python Usage
+## Python usage
 
 You may also use RSstitcher from within Python scripts or Jupyter notebooks.
 
-### Basic Example
+### Basic example
 
 ```python
 from rsstitcher import run_experiment
@@ -335,6 +349,9 @@ results = run_experiment('/path/to/experiment_data')
 #         "out_sx_inv_angstroms": ...,
 #         "out_sz_inv_angstroms": ...,
 #         "experiment": ...,
+#         "mode": ...,
+#         "beta_deg": ...,
+#         "n_pixels": ...,
 # }
 reciprocal_map = results["result_array"]
 print(f"Map created with shape: {reciprocal_map.shape}")
@@ -366,3 +383,5 @@ tests/test_cli.py ...                                                    [100%]
 ## Disclaimer
 
 The web version of RSstitcher was developed with support from an AI model (Claude Opus 4.6 by Anthropic).
+
+Changes to the algorithm and performance-improving changes were also made with an AI model (Claude Fable 5.0 and 5.1 by Anthropic).

@@ -1,4 +1,4 @@
-# Custom Instrument Configs
+# Custom instrument configs
 
 RSstitcher uses declarative JSON files to describe how detector parameters are extracted from image file headers. Built-in configs are provided for [Bruker (.gfrm)](bruker_gfrm.json) and [Rigaku (.img)](rigaku_img.json) detectors. You can add support for any detector by writing your own config file, as long as the file format is [supported by fabio](https://github.com/silx-kit/fabio). RSstitcher relies on fabio to read image data and headers, so your detector's file format must be one that fabio can open.
 
@@ -38,7 +38,7 @@ Every config must define all of the following in `fields`:
 |---|---|---|
 | `beam_position_x` | pixels | Horizontal beam centre on the detector. |
 | `beam_position_y` | pixels | Vertical beam centre on the detector. |
-| `chi_degrees` | degrees | Chi goniometer angle. |
+| `chi_degrees` | degrees | Corrected chi goniometer angle, including any instrument-specific offset (e.g. `+90` for Rigaku IMG, `-90` for Bruker GFRM). Used directly in the coordinate transforms. |
 | `phi_degrees` | degrees | Phi goniometer angle. |
 | `omega_degrees` | degrees | Omega goniometer angle. |
 | `detector_distance_mm` | mm | Sample-to-detector distance. |
@@ -63,8 +63,8 @@ Fields are evaluated top-to-bottom, so ordering matters when one field depends o
 
 See the built-in configs for complete working examples:
 
-- [bruker_gfrm.json](bruker_gfrm.json) — Bruker GFRM detector
-- [rigaku_img.json](rigaku_img.json) — Rigaku IMG detector
+- [bruker_gfrm.json](bruker_gfrm.json) for the Bruker GFRM detector
+- [rigaku_img.json](rigaku_img.json) for the Rigaku IMG detector
 
 ## Usage
 

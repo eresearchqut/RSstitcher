@@ -2,8 +2,9 @@ import functools
 import json
 import logging
 import pathlib
+import time
 from dataclasses import dataclass
-from math import floor, log10
+from math import ceil, floor, log10
 from typing import Literal, NotRequired, Optional, TypedDict
 
 import fabio
@@ -12,7 +13,10 @@ import pandas as pd
 import tifffile
 from fabio.openimage import FabioImage
 from scipy.ndimage import gaussian_filter
+from skimage.draw import circle_perimeter
 
+from .accumulate import GridAccumulator, ProfileAccumulator
+from .groupreduce import nearest_indexer
 from .instrument import (
     Image,
     InstrumentConfig,
@@ -20,7 +24,6 @@ from .instrument import (
     parse_with_instrument,
 )
 
-IMAGE_COLUMNS = ("Intensity", "x", "y", "TwoTheta", "Chi", "Sx", "Sz", "Omega")
 DEFAULT_PIXEL_SIZE = 0.075
 
 
@@ -68,6 +71,10 @@ class Experiment:
         """
         if self.blur_fraction <= 0.0:
             return np.ones(self.data_size)
+        # Pads by half the frame. Only pixels within the truncated kernel's
+        # reach (4 sigma) can see the padding boundary, so capping pad at
+        # int(4 * self.blur_pixels + 0.5) + 1 gives the same mask bit for
+        # bit and builds it about five times faster on wide frames.
         pad = int(round(max(self.data_size) / 2))
         mask = np.ones(self.data_size, dtype=float)
         padded = np.pad(
@@ -179,27 +186,69 @@ def parse_img(obj: FabioImage) -> Image:
     return parse_with_instrument(instrument, obj)
 
 
-def process_image(e: Experiment, file_path: str) -> pd.DataFrame:
+@dataclass
+class FrameHeader:
+    """Parsed header of one frame plus its phi-mirroring sign."""
+
+    file_path: pathlib.Path
+    image: Image
+    mirror: int
+
+
+def _frame_mirror(e: Experiment, image: Image, file_path: str) -> int:
+    if np.isclose(image.phi_degrees, e.phi0_deg, atol=e.phi_tolerance_deg):
+        return 1
+    if np.isclose(
+        image.phi_degrees, (e.phi0_deg + 180) % 360, atol=e.phi_tolerance_deg
+    ):
+        return -1
+    raise ImageProcessingError(
+        f"Image phi does not match expected phi: {image.phi_degrees} vs {e.phi0_deg}",
+        file_path,
+    )
+
+
+def prescan_frames(e: Experiment) -> list[FrameHeader]:
+    """Read every frame header, validating frame shapes and phi mirroring."""
+    headers: list[FrameHeader] = []
+    for file_path in e.file_paths:
+        obj: FabioImage = fabio.open(file_path)
+        if e.data_size != obj.shape:
+            raise ImageProcessingError(
+                f"Not all frames are the same size, got {obj.shape} expected {e.data_size}",
+                str(file_path),
+            )
+        image = parse_with_instrument(e.instrument, obj)
+        logger.debug(f"File: {file_path}: {image.chi_degrees=}, {image.phi_degrees=}")
+        mirror = _frame_mirror(e, image, str(file_path))
+        headers.append(FrameHeader(file_path=file_path, image=image, mirror=mirror))
+    return headers
+
+
+def detect_mode(omega_degrees: np.ndarray) -> Literal["symmetric", "gid"]:
+    """Detect whether the experiment is symmetric or GID based on omega range."""
+    omegas = np.asarray(omega_degrees, dtype=float)
+    return "symmetric" if omegas.max() - omegas.min() == 0 else "gid"
+
+
+def read_intensity(
+    e: Experiment, file_path: str, mode: Literal["symmetric", "gid"]
+) -> np.ndarray:
     """
-    Process a single image file into Sx, Sz space
+    Read one frame's pixel values as a 2D array, scaled (linear/log/sqrt) and
+    edge-blurred in GID mode. Raw detector values are kept as-is (no baseline
+    subtraction).
     """
     obj: FabioImage = fabio.open(file_path)
-    image = parse_with_instrument(e.instrument, obj)
-
     if e.data_size != obj.shape:
         raise ImageProcessingError(
             f"Not all frames are the same size, got {obj.shape} expected {e.data_size}",
             file_path,
         )
 
-    logger.debug(f"File: {file_path}: {image.chi_degrees=}, {image.phi_degrees=}")
-
     image_data: np.ndarray = obj.data
     if not np.any(image_data):
         raise ImageProcessingError("Image data is all zeros", file_path)
-
-    non_zero_minimum = np.min(image_data[np.nonzero(image_data)]).astype(np.float64)
-    image_data = np.maximum(0, image_data - non_zero_minimum)
 
     if e.scale == "linear":
         pass
@@ -212,153 +261,105 @@ def process_image(e: Experiment, file_path: str) -> pd.DataFrame:
     else:
         raise ValueError(f"Unknown scale: {e.scale}")
 
-    image_data = image_data * e.alpha_crop
-    i, j = np.indices(e.data_size)
-
-    intensity_full = image_data.ravel()
-    intensity_mask = intensity_full != 0
-    intensity = intensity_full[intensity_mask]
-
-    x = (i.ravel()[intensity_mask] - image.beam_position_y) * e.pixel_mm
-    y = (j.ravel()[intensity_mask] - image.beam_position_x) * e.theta_pixel_rad
-
-    two_theta = np.arccos(
-        (e.detector_distance_mm * np.cos(y)) / np.sqrt(e.detector_distance_mm**2 + x**2)
-    )
-
-    chi = np.arctan2(x, 2 * e.detector_distance_mm * np.sin(y / 2)) + np.radians(
-        image.chi_degrees + 90
-    )
-
-    factor = 2 * np.sin(two_theta / 2) / e.wavelength_a
-
-    if np.abs((np.abs(e.phi0_deg - image.phi_degrees) - 180)) < e.phi_tolerance_deg:
-        mirror = -1
-    elif np.abs(e.phi0_deg - image.phi_degrees) < e.phi_tolerance_deg:
-        mirror = 1
-    else:
-        raise ImageProcessingError(
-            f"Image phi does not match expected phi: {image.phi_degrees} vs {e.phi0_deg}",
-            file_path,
-        )
-
-    sz = factor * np.cos(chi)
-    sx = factor * np.sin(chi) * mirror
-
-    df = pd.DataFrame(
-        {
-            "Intensity": intensity,
-            "x": x,
-            "y": y,
-            "TwoTheta": two_theta,
-            "Chi": chi,
-            "Sz": sz,
-            "Sx": sx,
-            "Omega": np.full_like(intensity, image.omega_degrees),
-        },
-        columns=IMAGE_COLUMNS,
-    )
-    return df
+    if mode == "gid":
+        image_data = image_data * e.alpha_crop
+    return image_data
 
 
-def _make_grid(start: float, stop: float, step: float, n_decimals: int) -> np.ndarray:
-    """Create an evenly-spaced grid with deterministic length across platforms.
+@dataclass
+class FrameTransform:
+    """Pixels of one frame that survive the beta cutoff, in raster order."""
 
-    Uses integer-based stepping instead of np.arange with float step,
-    which can produce different array lengths due to FP accumulation.
+    keep: np.ndarray  # 2D bool mask over the frame
+    sx: np.ndarray  # 1D float64, kept pixels
+    sz: np.ndarray  # 1D float64, kept pixels
+    correction: np.ndarray | None  # 1D float64 (1 + sin alpha / sin beta), kept pixels
+
+
+def transform_frame(
+    e: Experiment,
+    image: Image,
+    mirror: int,
+    mode: Literal["symmetric", "gid"],
+    beta_deg: float,
+    with_correction: bool = True,
+) -> FrameTransform:
     """
-    n = int(round((stop - start) / step))
-    return np.round(start + np.arange(n) * step, n_decimals)
+    Compute per-pixel reciprocal coordinates and the sin(alpha)/sin(beta)
+    intensity correction for one frame, dropping pixels below the beta cutoff.
 
-
-def _snap_to_nearest(values: np.ndarray, targets: np.ndarray) -> np.ndarray:
+    Geometry depends only on the pixel row (x) or column (y), so row- and
+    column-wise terms are evaluated once as 1D vectors and broadcast, which
+    gives the same per-pixel values as full per-pixel evaluation.
     """
-    Snap each value to the nearest value in a sorted targets array.
-    """
-    idx = np.searchsorted(targets, values, side="left")
-    idx = np.clip(idx, 1, len(targets) - 1)
-    left = targets[idx - 1]
-    right = targets[idx]
-    return np.where(np.abs(values - left) <= np.abs(values - right), left, right)
+    d = e.detector_distance_mm
+    n_i, n_j = e.data_size
 
-
-def detect_mode(image_df: pd.DataFrame) -> Literal["symmetric", "gid"]:
-    """Detect whether the experiment is symmetric or GID based on omega range."""
-    omega_range = image_df["Omega"].max() - image_df["Omega"].min()
-    return "gid" if omega_range > 0 else "symmetric"
-
-
-def apply_gid_transform(image_df: pd.DataFrame, wavelength_a: float) -> pd.DataFrame:
-    """Apply GID coordinate transform, replacing Sx/Sz columns."""
-    df = image_df.copy()
-    two_theta = df["TwoTheta"].to_numpy()
-    chi = df["Chi"].to_numpy()
-    y = df["y"].to_numpy()
-    sx = df["Sx"].to_numpy()
-
-    factor = 2 * np.sin(two_theta / 2) / wavelength_a
-
-    gid_sz = factor * np.cos(y / 2) * np.cos(chi)
-
+    x = (image.beam_position_y - np.arange(n_i)) * e.pixel_mm
+    y = (np.arange(n_j) - image.beam_position_x) * e.theta_pixel_rad
+    chi = np.radians(image.chi_degrees)
+    cos_chi = np.cos(chi)
     sin_chi = np.sin(chi)
-    safe_sin_chi = np.where(
-        np.abs(sin_chi) < 1e-10, np.copysign(1e-10, sin_chi), sin_chi
-    )
-    cos_term = np.clip(np.cos(chi) * np.cos(y / 2), -1.0, 1.0)
-    gid_sr_raw = (sx / safe_sin_chi) * np.sin(np.arccos(cos_term))
-    gid_sr = np.where(chi >= 0, gid_sr_raw, -gid_sr_raw)
 
-    df["Sz"] = gid_sz
-    df["Sx"] = gid_sr
-    return df
+    # invalid: arccos of values a float ulp outside [-1, 1] and the 0/0
+    # correction; divide: sin_beta == 0 in the correction. Both produce
+    # NaN/inf that the accumulators skip.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        hypot = np.sqrt(d**2 + x**2)
+        sin_half_y = np.sin(y / 2)
+        two_theta = np.arccos((d * np.cos(y))[None, :] / hypot[:, None])
+        chi_prime = np.arctan2(x[:, None], (2 * d * sin_half_y)[None, :])
+        x_sin_chi = x * sin_chi
 
+        if mode == "symmetric":
+            sin_alpha = sin_half_y * cos_chi
+            sin_beta = (
+                ((d * sin_half_y) * cos_chi)[None, :] + x_sin_chi[:, None]
+            ) / hypot[:, None]
+            # ~(a < cutoff) rather than a >= cutoff keeps NaN sin_beta pixels
+            keep = ~(sin_beta < np.sin(np.radians(beta_deg)))
 
-def build_grid(
-    image_df: pd.DataFrame,
-    out_sx: np.ndarray,
-    out_sz: np.ndarray,
-    n_decimals: int,
-) -> np.ndarray:
-    """
-    Bin reciprocal data into 2D grid
-    """
-    df = image_df.copy()
-    df["Sx_r"] = np.round(df["Sx"], n_decimals)
-    df["Sz_r"] = np.round(df["Sz"], n_decimals)
-    out_sx_r = np.round(out_sx, n_decimals)
-    out_sz_r = np.round(out_sz, n_decimals)
+            q = (2 * np.sin(two_theta / 2)) / e.wavelength_a
+            del two_theta
+            chi_s = chi_prime - chi
+            del chi_prime
+            sz = q * np.cos(chi_s)
+            sx = (q * np.sin(chi_s)) * mirror
+            del q, chi_s
+            correction = (
+                (1 + sin_alpha[None, :] / sin_beta) if with_correction else None
+            )
+        else:
+            omega = np.radians(image.omega_degrees)
+            sin_alpha = np.sin(omega) * cos_chi
+            sin_beta = (
+                ((d * np.sin(y - np.arcsin(sin_alpha))) * cos_chi)[None, :]
+                + x_sin_chi[:, None]
+            ) / hypot[:, None]
+            keep = ~(sin_beta < np.sin(np.radians(beta_deg)))
 
-    grid = (
-        df.groupby(["Sx_r", "Sz_r"])["Intensity"]
-        .max()
-        .unstack()
-        .reindex(index=out_sx_r, columns=out_sz_r)
-    )
-    return grid.to_numpy()
+            eoc = np.arccos(
+                (cos_chi * np.cos(y / 2))[None, :] * np.cos(chi_prime)
+                + sin_chi * np.sin(chi_prime)
+            )
+            del chi_prime
+            q = (2 * np.sin(two_theta / 2)) / e.wavelength_a
+            del two_theta
+            sr = (q * np.sin(eoc)) * mirror
+            gamma = np.arctan2(x[:, None], (d * np.sin(y))[None, :])
+            sx = np.where(gamma - chi >= 0, sr, -sr)
+            del gamma, sr
+            sz = q * np.cos(eoc)
+            del q, eoc
+            correction = (1 + sin_alpha / sin_beta) if with_correction else None
 
-
-def build_grid_azimuth(
-    image_df: pd.DataFrame,
-    out_r: np.ndarray,
-    out_gamma: np.ndarray,
-    n_decimals: int,
-) -> np.ndarray:
-    """
-    Bin intensity data into R-Gamma space using sum aggregation.
-    """
-    df = image_df.copy()
-    df["R_r"] = np.round(df["R"], n_decimals)
-    df["Gamma_r"] = np.round(df["Gamma"], n_decimals)
-    grid = (
-        df.groupby(["R_r", "Gamma_r"])["Intensity"]
-        .sum()
-        .unstack()
-        .reindex(
-            index=np.round(out_r, n_decimals),
-            columns=np.round(out_gamma, n_decimals),
+        del sin_beta
+        return FrameTransform(
+            keep=keep,
+            sx=sx[keep],
+            sz=sz[keep],
+            correction=correction[keep] if correction is not None else None,
         )
-    )
-    return grid.to_numpy()
 
 
 def _normalize_radii(
@@ -369,58 +370,16 @@ def _normalize_radii(
 ) -> list[float]:
     """Normalize user-provided radii.
 
-    - If radii is None or empty list: return empty list (no circles).
+    - If radii is empty: return empty list (no circles).
     - If any value < 0: generate default radii every 0.1 Å⁻¹ up to max radius.
-    - Always round to n_decimals and ensure 0 is included.
+    - Round to n_decimals.
     """
+    if not radii:
+        return []
     if any(r < 0 for r in radii):
-        max_r = float(
-            np.sqrt((np.max(np.abs(out_sx)) ** 2) + (np.max(np.abs(out_sz)) ** 2))
-        )
-        radii = list(np.arange(0.0, max_r, 0.1))
-
-    radii_arr = np.round(np.asarray(radii, dtype=float), n_decimals)
-    if not np.any(np.isclose(radii_arr, 0.0)):
-        radii_arr = np.concatenate([np.array([0.0]), radii_arr])
-    radii_arr = np.unique(radii_arr)
-    return radii_arr.tolist()
-
-
-def circle_mask(
-    out_sx: np.ndarray,
-    out_sz: np.ndarray,
-    radii: list[float],
-    n_decimals: int,
-    delta_s: float,
-) -> np.ndarray:
-    """Compute a boolean mask for circular overlays in Sx/Sz space.
-
-    Efficient vectorized implementation: build a 2D matrix of rounded radii
-    for each (Sx, Sz) pixel and check membership against the set of target
-    radii using numpy broadcasting and isin.
-    """
-    normalized_radii = _normalize_radii(radii, out_sx, out_sz, n_decimals)
-    if len(normalized_radii) == 0:
-        return np.zeros((out_sx.shape[0], out_sz.shape[0]), dtype=bool)
-
-    sx_grid, sz_grid = np.meshgrid(out_sx, out_sz, indexing="ij")
-    r = np.round(np.sqrt(sx_grid**2 + sz_grid**2), n_decimals)
-
-    mask = np.zeros_like(r, dtype=bool)
-    for target_r in normalized_radii:
-        mask |= np.isclose(r, target_r, atol=delta_s / 2)
-    return mask
-
-
-def axis_mask(
-    out_sx: np.ndarray,
-    out_sz: np.ndarray,
-    delta_s: float,
-) -> np.ndarray:
-    """Compute boolean mask for axes (Sx=0 or Sz=0 within delta_s/2 tolerance)."""
-    sx_zero = np.isclose(out_sx, 0.0, atol=delta_s / 2.0)[:, None]
-    sz_zero = np.isclose(out_sz, 0.0, atol=delta_s / 2.0)[None, :]
-    return sx_zero | sz_zero
+        max_r = float(np.sqrt(np.abs(out_sx.max()) ** 2 + np.abs(out_sz.max()) ** 2))
+        radii = np.arange(start=0.0, stop=max_r, step=0.1).tolist()
+    return list(np.round(radii, n_decimals))
 
 
 def build_overlay_grid(
@@ -430,138 +389,28 @@ def build_overlay_grid(
     n_decimals: int,
     delta_s: float,
 ) -> np.ndarray:
-    """Build a grid for overlays (circles + optional axes) as a boolean array."""
-    grid = np.zeros((out_sx.shape[0], out_sz.shape[0]), dtype=bool)
-    grid |= axis_mask(out_sx, out_sz, delta_s)
-    grid |= circle_mask(
-        out_sx, out_sz, radii=radii, n_decimals=n_decimals, delta_s=delta_s
-    )
+    """Build a grid overlay (circles + axes) as a 0/1 float array."""
+    grid = np.zeros((len(out_sx), len(out_sz)))
+    shape = grid.shape
+
+    centre_x = int(np.argmin(np.abs(out_sx)))
+    centre_z = int(np.argmin(np.abs(out_sz)))
+
+    normalized_radii = _normalize_radii(radii, out_sx, out_sz, n_decimals)
+    for radius in normalized_radii:
+        rr, cc = circle_perimeter(
+            centre_x, centre_z, int(radius / delta_s), shape=shape
+        )
+        grid[rr, cc] = 1
+
+    grid[:, centre_z] = 1
+    grid[centre_x, :] = 1
     return grid
-
-
-def _build_polar_grid(
-    image_df: pd.DataFrame,
-    n_decimals: int,
-    delta_s: float,
-    sx_min: float,
-    sx_max_raw: float,
-    sz_max_raw: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
-    """
-    Build shared R-Gamma intensity grid for azimuthal/radial profiles.
-    """
-    df = image_df.copy()
-    df["R"] = np.sqrt(df["Sx"] ** 2 + df["Sz"] ** 2)
-    df["Gamma"] = np.arctan2(df["Sz"], df["Sx"])
-
-    # Position grid from positive-Sz half-plane
-    out_sx_full = np.arange(
-        round(sx_min, n_decimals),
-        round(sx_max_raw, n_decimals) + delta_s,
-        delta_s,
-    )
-    out_sz_full = np.arange(0, round(sz_max_raw, n_decimals) + delta_s, delta_s)
-    full_x, full_z = np.meshgrid(out_sx_full, out_sz_full)
-    positions = pd.DataFrame(
-        {
-            "R": np.sqrt(full_x.ravel() ** 2 + full_z.ravel() ** 2),
-            "Gamma": np.arctan2(full_z.ravel(), full_x.ravel()),
-            "Intensity": 1.0,
-        }
-    )
-
-    # R and Gamma grids derived from positions (using delta_s as R step)
-    out_r = np.arange(
-        round(float(positions["R"].min()), n_decimals) - delta_s,
-        round(float(positions["R"].max()), n_decimals) + delta_s,
-        delta_s,
-    )
-    delta_gamma = np.radians(0.5)
-    out_gamma = np.arange(
-        round(float(positions["Gamma"].min()), n_decimals) - delta_gamma,
-        round(float(positions["Gamma"].max()), n_decimals) + delta_gamma,
-        delta_gamma,
-    )
-
-    # Snap positions and data to grids
-    positions["R"] = _snap_to_nearest(positions["R"].to_numpy(), out_r)
-    positions["Gamma"] = _snap_to_nearest(positions["Gamma"].to_numpy(), out_gamma)
-
-    df["R"] = _snap_to_nearest(df["R"].to_numpy(), out_r)
-    df["Gamma"] = _snap_to_nearest(df["Gamma"].to_numpy(), out_gamma)
-
-    # Build intensity grid
-    r_gamma = build_grid_azimuth(df, out_r, out_gamma, n_decimals)
-
-    return r_gamma, out_r, out_gamma, positions
-
-
-def compute_azimuthal_profile(
-    r_gamma: np.ndarray,
-    out_r: np.ndarray,
-    out_gamma: np.ndarray,
-    positions: pd.DataFrame,
-    n_sectors: int,
-) -> pd.DataFrame:
-    """
-    Compute azimuthal average profile split into N sectors over [0, pi].
-    """
-    sector_boundaries = np.linspace(0, np.pi, n_sectors + 1)
-    gamma_cols: dict[str, pd.Series] = {}
-    radius = pd.Series(dtype=float)
-
-    for s in range(n_sectors):
-        lo = sector_boundaries[s]
-        hi = sector_boundaries[s + 1]
-
-        n_sector = positions[(positions["Gamma"] >= lo) & (positions["Gamma"] < hi)]
-        values, counts = np.unique(
-            n_sector["R"].to_numpy(), return_counts=True, equal_nan=False
-        )
-
-        gamma_mask = (out_gamma >= lo) & (out_gamma < hi)
-        g_sector = np.nansum(r_gamma[:, gamma_mask], axis=1)[: len(counts)] / counts
-
-        radius = pd.Series(values)
-        gamma_cols[f"Chi {np.degrees(lo) - 90:.1f} : {np.degrees(hi) - 90:.1f}"] = (
-            pd.Series(g_sector)
-        )
-
-    # Single shared Radius column — all sectors share the same non-NaN radii
-    # because the detector's angular coverage doesn't reach the grid corners
-    # (the truncated tail is only NaN).
-    result: dict[str, pd.Series] = {"Radius (S^-1)": radius}
-    result.update(gamma_cols)
-    return pd.DataFrame.from_dict(result)
 
 
 def write_azimuthal_csv(file_path: str, df: pd.DataFrame) -> None:
     """Write azimuthal profile to CSV."""
     df.to_csv(file_path, index=False)
-
-
-def compute_radial_profiles(
-    r_gamma: np.ndarray,
-    out_r: np.ndarray,
-    out_gamma: np.ndarray,
-    radial_bins: list[tuple[float, float]],
-    n_decimals: int,
-) -> pd.DataFrame:
-    """Compute radial intensity profiles from the shared R-Gamma grid.
-
-    Returns DataFrame with columns: Chi (degrees), S = r_min to r_max A^-1, etc.
-    """
-    result = {"Chi (degrees)": np.degrees(out_gamma) - 90}
-
-    for r_lo, r_hi in radial_bins:
-        col_name = f"S = {r_lo} to {r_hi} A^-1"
-        mask = (out_r >= r_lo) & (out_r < r_hi)
-        if mask.any():
-            result[col_name] = np.nanmax(r_gamma[mask, :], axis=0)
-        else:
-            result[col_name] = np.full(len(out_gamma), np.nan)
-
-    return pd.DataFrame(result)
 
 
 def write_radial_csv(file_path: str, df: pd.DataFrame) -> None:
@@ -592,7 +441,7 @@ def write_pixels_tiff(
     """
     Write the result array to a TIFF file
     """
-    tifffile.imwrite(file_path, np.fliplr(np.rot90(result_array, 1)).astype(np.float32))
+    tifffile.imwrite(file_path, np.rot90(result_array, 1).astype(np.float32))
 
 
 def write_grid_tiff(
@@ -601,18 +450,27 @@ def write_grid_tiff(
     """
     Write the overlay grid (axes + circles) to a TIFF file as float32 (0/1)
     """
-    data = grid_array.astype(np.float32)
-    tifffile.imwrite(file_path, np.fliplr(np.rot90(data, 1)))
+    tifffile.imwrite(file_path, np.rot90(grid_array, 1).astype(np.float32))
 
 
-def write_experiment_json(file_path: str, experiment: Experiment) -> None:
+def write_experiment_json(
+    file_path: str,
+    experiment: Experiment,
+    mode: str | None = None,
+    beta_deg: float | None = None,
+) -> None:
     """
-    Write the experiment parameters to a JSON file
+    Write the experiment parameters to a JSON file.
+
+    Pass the resolved mode and beta from the Result for accurate reporting;
+    blur is reported as 0 in symmetric mode since it only applies to GID.
     """
+    reported_mode = mode if mode is not None else experiment.mode
+    blur_pixels = 0 if reported_mode == "symmetric" else experiment.blur_pixels
     experiment_dict = {
         "type": experiment.type,
         "instrument": experiment.instrument.name,
-        "mode": experiment.mode,
+        "mode": reported_mode,
         "data_size": experiment.data_size,
         "detector_distance_mm": experiment.detector_distance_mm,
         "phi0_deg": experiment.phi0_deg,
@@ -621,8 +479,10 @@ def write_experiment_json(file_path: str, experiment: Experiment) -> None:
         "theta_pixel_rad": experiment.theta_pixel_rad,
         "delta_s": experiment.delta_s,
         "n_decimals": experiment.n_decimals,
-        "blur_pixels": experiment.blur_pixels,
+        "blur_pixels": blur_pixels,
     }
+    if beta_deg is not None:
+        experiment_dict["beta_deg"] = beta_deg
     with open(file_path, "w") as f:
         json.dump(experiment_dict, f, indent=4)
 
@@ -633,9 +493,45 @@ class Result(TypedDict):
     out_sz_inv_angstroms: np.ndarray
     experiment: Experiment
     mode: Literal["symmetric", "gid"]
-    image_df: pd.DataFrame
+    beta_deg: float
+    n_pixels: int
     azimuthal_profile: NotRequired[pd.DataFrame]
     radial_profiles: NotRequired[pd.DataFrame]
+
+
+def output_axis(
+    min_value: float, max_value: float, delta_s: float, n_decimals: int
+) -> np.ndarray:
+    """
+    Build an output grid axis of ``delta_s`` steps spanning
+    ``[round(min) - delta_s, round(max) + delta_s)``, rounded to the grid
+    precision.
+
+    Stepping an integer index rather than accumulating a float step keeps
+    the axis length identical across platforms; the top cell is kept when
+    the span is not a whole number of steps.
+    """
+    start = round(min_value, n_decimals) - delta_s
+    stop = round(max_value, n_decimals) + delta_s
+    ratio = (stop - start) / delta_s
+    n = round(ratio) if abs(ratio - round(ratio)) < 1e-6 else ceil(ratio)
+    return np.round(start + np.arange(n) * delta_s, n_decimals)
+
+
+def _stage(name: str, started: float) -> float:
+    now = time.perf_counter()
+    logger.info(f"{name}: {now - started:.2f} s")
+    return now
+
+
+def _progress(stage: str, done: int, total: int) -> dict:
+    """
+    ``extra`` for a log record that also carries machine-readable progress.
+
+    Formatters leave the attribute out, so the CLI log shows the message
+    only; a handler can read ``record.progress`` to drive a progress display.
+    """
+    return {"progress": {"stage": stage, "done": done, "total": total}}
 
 
 def run_experiment(
@@ -644,12 +540,28 @@ def run_experiment(
     scale: Optional[Literal["linear", "log", "sqrt"]] = "linear",
     phi_tolerance: float = 5.0,
     blur_fraction: float = 0.1,
+    beta: Optional[float] = None,
     azimuthal_bins: Optional[int] = None,
     radial_bins: Optional[list[tuple[float, float]]] = None,
     instruments: list[InstrumentConfig] | None = None,
 ) -> Result:
     """
-    Building the 2D reciprocal space map from the images in the path
+    Building the 2D reciprocal space map from the images in the path.
+
+    The mode (symmetric vs GID) is resolved from the omega range across all
+    frame headers before any pixel processing, since it controls edge
+    blurring, the coordinate transform and grid aggregation. When *beta* is
+    None the cutoff is 1.5 degrees in both modes.
+
+    The azimuthal and radial profiles are defined for symmetric scans only;
+    *azimuthal_bins* and *radial_bins* are ignored, with a warning, when the
+    resolved mode is GID.
+
+    Frames are processed one at a time. A first pass over the frame headers
+    computes the reciprocal-space bounds of the output grid; a second pass
+    reads each frame's pixels, applies the cutoff and correction, snaps to
+    grid cells and folds them into fixed-size accumulators, so memory scales
+    with the output grid rather than the total pixel count.
     """
     e = get_experiment(
         path,
@@ -660,87 +572,121 @@ def run_experiment(
         instruments=instruments,
     )
 
-    n_decimals = get_decimal_places(e.delta_s)
+    n_decimals = e.n_decimals
 
     logger.info(f"Setting up a projection orthogonal to phi = {e.phi0_deg} degrees")
 
-    results = map(functools.partial(process_image, e), e.file_paths)
-    image_df = pd.concat(results)
+    started = time.perf_counter()
+    n_frames = len(e.file_paths)
+    logger.info(
+        "Reading %d frame headers", n_frames, extra=_progress("headers", 0, n_frames)
+    )
+    headers = prescan_frames(e)
+    omegas = np.array([h.image.omega_degrees for h in headers], dtype=float)
+    resolved_mode = detect_mode(omegas) if e.mode == "auto" else e.mode
+    resolved_beta = beta if beta is not None else 1.5
+    started = _stage("Header pre-scan", started)
 
-    resolved_mode = detect_mode(image_df) if e.mode == "auto" else e.mode
-    if resolved_mode == "gid":
-        image_df = apply_gid_transform(image_df, e.wavelength_a)
+    logger.info("Computing the grid bounds", extra=_progress("bounds", 0, n_frames))
+    sx_min, sx_max = np.inf, -np.inf
+    sz_max = -np.inf
+    for i, header in enumerate(headers, 1):
+        frame = transform_frame(
+            e,
+            header.image,
+            header.mirror,
+            resolved_mode,
+            resolved_beta,
+            with_correction=False,
+        )
+        if len(frame.sx):
+            sx_min = min(sx_min, np.nanmin(frame.sx))
+            sx_max = max(sx_max, np.nanmax(frame.sx))
+            sz_max = max(sz_max, np.nanmax(frame.sz))
+        logger.debug(
+            "Grid bounds pass: frame %d of %d",
+            i,
+            n_frames,
+            extra=_progress("bounds", i, n_frames),
+        )
+    started = _stage("Grid bounds pass", started)
 
-    if image_df["Sx"].min() >= 0:
+    if sx_min >= 0:
         sx_min = -e.delta_s
-    else:
-        sx_min = round(image_df["Sx"].min(), n_decimals)
+    sz_min = 0.0
 
-    if image_df["Sz"].min() >= 0:
-        sz_min = -e.delta_s
-    else:
-        sz_min = round(image_df["Sz"].min(), n_decimals)
+    out_sx_inv_angstroms = output_axis(sx_min, sx_max, e.delta_s, n_decimals)
+    out_sz_inv_angstroms = output_axis(sz_min, sz_max, e.delta_s, n_decimals)
+    n_sz = len(out_sz_inv_angstroms)
 
-    out_sx_inv_angstroms = np.round(
-        np.arange(
-            sx_min - e.delta_s,
-            round(image_df["Sx"].max(), n_decimals) + e.delta_s,
-            e.delta_s,
-        ),
-        n_decimals,
+    grid = GridAccumulator(
+        (len(out_sx_inv_angstroms), n_sz),
+        aggregation="mean" if resolved_mode == "symmetric" else "max",
     )
-    out_sz_inv_angstroms = np.round(
-        np.arange(
-            sz_min - e.delta_s,
-            round(image_df["Sz"].max(), n_decimals) + e.delta_s,
-            e.delta_s,
-        ),
-        n_decimals,
+    need_profiles = (azimuthal_bins is not None and azimuthal_bins >= 1) or (
+        radial_bins is not None and len(radial_bins) > 0
+    )
+    if need_profiles and resolved_mode == "gid":
+        logger.warning(
+            "Azimuthal and radial profiles are only defined for symmetric scans; "
+            "ignoring them for this GID scan"
+        )
+        need_profiles = False
+    profiles = (
+        ProfileAccumulator(
+            out_sx_inv_angstroms,
+            out_sz_inv_angstroms,
+            n_decimals,
+            azimuthal_bins,
+            radial_bins,
+        )
+        if need_profiles
+        else None
     )
 
-    sx_max_raw = float(image_df["Sx"].max())
-    sz_max_raw = float(image_df["Sz"].max())
-
-    image_df["Sx"] = _snap_to_nearest(image_df["Sx"].to_numpy(), out_sx_inv_angstroms)
-    image_df["Sz"] = _snap_to_nearest(image_df["Sz"].to_numpy(), out_sz_inv_angstroms)
-
-    result_array = build_grid(
-        image_df,
-        out_sx_inv_angstroms,
-        out_sz_inv_angstroms,
-        n_decimals=e.n_decimals,
-    )
+    logger.info("Accumulating frames", extra=_progress("accumulate", 0, n_frames))
+    n_pixels = 0
+    for i, header in enumerate(headers, 1):
+        intensity = read_intensity(e, str(header.file_path), resolved_mode)
+        frame = transform_frame(
+            e, header.image, header.mirror, resolved_mode, resolved_beta
+        )
+        # invalid: 0 * inf where a zero pixel meets an infinite correction
+        with np.errstate(invalid="ignore"):
+            corrected = (intensity[frame.keep] * frame.correction) / 2
+        del intensity
+        cells = nearest_indexer(
+            out_sx_inv_angstroms, frame.sx
+        ) * n_sz + nearest_indexer(out_sz_inv_angstroms, frame.sz)
+        del frame
+        grid.add(cells, corrected)
+        if profiles is not None:
+            profiles.add(cells, corrected)
+        n_pixels += len(corrected)
+        logger.debug(
+            "Frame accumulation pass: frame %d of %d",
+            i,
+            n_frames,
+            extra=_progress("accumulate", i, n_frames),
+        )
+    started = _stage("Frame accumulation pass", started)
 
     result: Result = {
-        "result_array": result_array,
+        "result_array": grid.result(),
         "out_sx_inv_angstroms": out_sx_inv_angstroms,
         "out_sz_inv_angstroms": out_sz_inv_angstroms,
         "experiment": e,
         "mode": resolved_mode,
-        "image_df": image_df,
+        "beta_deg": resolved_beta,
+        "n_pixels": n_pixels,
     }
 
-    need_polar = (azimuthal_bins is not None and azimuthal_bins >= 1) or (
-        radial_bins is not None and len(radial_bins) > 0
-    )
-    if need_polar:
-        r_gamma, out_r, out_gamma, positions = _build_polar_grid(
-            image_df,
-            n_decimals=n_decimals,
-            delta_s=e.delta_s,
-            sx_min=sx_min,
-            sx_max_raw=sx_max_raw,
-            sz_max_raw=sz_max_raw,
-        )
-
-    if azimuthal_bins is not None and azimuthal_bins >= 1:
-        result["azimuthal_profile"] = compute_azimuthal_profile(
-            r_gamma, out_r, out_gamma, positions, n_sectors=azimuthal_bins
-        )
-
-    if radial_bins is not None and len(radial_bins) > 0:
-        result["radial_profiles"] = compute_radial_profiles(
-            r_gamma, out_r, out_gamma, radial_bins, n_decimals
-        )
+    if profiles is not None:
+        logger.info("Computing the profiles", extra=_progress("profiles", 0, 1))
+        if profiles.n_sectors:
+            result["azimuthal_profile"] = profiles.azimuthal_profile()
+        if profiles.radial_bins:
+            result["radial_profiles"] = profiles.radial_profiles()
+        _stage("Profiles", started)
 
     return result

@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 
-import type { WorkerMessage, WorkerResponse, ProcessParams } from "./types";
+import type {
+  WorkerMessage,
+  WorkerResponse,
+  ProcessParams,
+  ProcessLogRecord,
+} from "./types";
 
 import webEntryPy from "../python/web_entry.py?raw";
 
@@ -16,6 +21,7 @@ interface PyodideInterface {
   runPythonAsync(code: string): Promise<unknown>;
   globals: {
     get(name: string): unknown;
+    set(name: string, value: unknown): void;
   };
 }
 
@@ -49,9 +55,15 @@ async function init() {
 
     post({
       type: "init-progress",
-      stage: "Loading Python packages (numpy, pandas, scipy)...",
+      stage: "Loading Python packages (numpy, pandas, scipy, scikit-image)...",
     });
-    await pyodide.loadPackage(["numpy", "pandas", "scipy", "micropip"]);
+    await pyodide.loadPackage([
+      "numpy",
+      "pandas",
+      "scipy",
+      "scikit-image",
+      "micropip",
+    ]);
 
     post({
       type: "init-progress",
@@ -121,7 +133,24 @@ async function process(
     return;
   }
 
+  const t0 = Date.now();
+  const log = (record: ProcessLogRecord) =>
+    post({ type: "process-log", record });
+  const ownLine = (message: string) =>
+    log({
+      elapsed: (Date.now() - t0) / 1000,
+      level: "INFO",
+      logger: "web",
+      message,
+      progress: null,
+    });
+
   try {
+    const totalBytes = files.reduce((sum, f) => sum + f.data.byteLength, 0);
+    ownLine(
+      `Copying ${files.length} files (${(totalBytes / 1048576).toFixed(1)} MB) into the virtual filesystem`,
+    );
+
     // Clean and create input/output directories
     await pyodide.runPythonAsync(`
 import shutil, os
@@ -140,14 +169,19 @@ for d in ['/input', '/output']:
       pyodide.FS.writeFile(`/input/${file.path}`, new Uint8Array(file.data));
     }
 
-    // Build parameters for Python call
+    // Build parameters for Python call. Profiles are symmetric-only, so an
+    // explicit GID run passes no bins (an auto run that resolves to GID
+    // drops them in run_experiment with a warning).
+    const profiles = params.mode !== "gid";
     const radialBinsStr =
-      params.radialBins && params.radialBins.length > 0
+      profiles && params.radialBins && params.radialBins.length > 0
         ? JSON.stringify(params.radialBins.map(([min, max]) => `${min},${max}`))
         : "None";
 
     const azBins =
-      params.azimuthalBins !== null ? String(params.azimuthalBins) : "None";
+      profiles && params.azimuthalBins !== null
+        ? String(params.azimuthalBins)
+        : "None";
 
     // Write custom instrument JSON to virtual FS if provided
     const instrumentArg =
@@ -161,6 +195,26 @@ for d in ['/input', '/output']:
       );
     }
 
+    // Every rsstitcher log record reaches the UI through this callback, one
+    // JSON string per record (see _LogForwarder in web_entry.py). Python's
+    // time.time() is Date.now() here, so the elapsed time is on one clock.
+    pyodide.globals.set("_report_progress", (payload: string) => {
+      const raw = JSON.parse(payload) as {
+        time: number;
+        level: string;
+        logger: string;
+        message: string;
+        progress: ProcessLogRecord["progress"];
+      };
+      log({
+        elapsed: (raw.time * 1000 - t0) / 1000,
+        level: raw.level,
+        logger: raw.logger,
+        message: raw.message,
+        progress: raw.progress,
+      });
+    });
+
     await pyodide.runPythonAsync(`
 _result = web_entry.process(
     input_dir='/input',
@@ -169,9 +223,11 @@ _result = web_entry.process(
     scale='${params.scale}',
     phi_tolerance=${params.phiTolerance},
     blur_fraction=${params.blurFraction},
+    beta=${params.beta},
     azimuthal_bins=${azBins},
     radial_bins_str=${radialBinsStr === "None" ? "None" : `'${radialBinsStr}'`},
     instrument=${instrumentArg},
+    progress=_report_progress,
 )
 `);
 
@@ -196,6 +252,8 @@ _result = web_entry.process(
       const data = pyodide.FS.readFile(path);
       outputs[key] = new Uint8Array(data).buffer as ArrayBuffer;
     }
+
+    ownLine(`Done in ${((Date.now() - t0) / 1000).toFixed(2)} s`);
 
     // Get array data as transferable buffers
     const arrayBuf = new Uint8Array(arrayData).buffer as ArrayBuffer;

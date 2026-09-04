@@ -11,6 +11,10 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
   const update = (partial: Partial<ProcessParams>) =>
     onChange({ ...params, ...partial });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Profiles are produced for symmetric scans only (A2); the controls are
+  // hidden when the mode is GID and carry a note when it is auto-detected.
+  const profileNote =
+    params.mode === "auto" ? ". Symmetric scans only; ignored for GID" : "";
 
   const handleInstrumentFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -129,105 +133,136 @@ export function ParameterControls({ params, onChange, disabled }: Props) {
       </label>
 
       <label className="block">
-        <span className="text-sm text-gray-400">Frame edge blur fraction</span>
-        <input
-          type="number"
-          value={params.blurFraction}
-          onChange={(e) =>
-            update({ blurFraction: parseFloat(e.target.value) || 0 })
-          }
-          step={0.05}
-          min={0}
-          max={1}
-          disabled={disabled}
-          className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-sm text-gray-400">Zenithal bins</span>
-        <span className="block text-xs text-gray-500">For integration</span>
-        <input
-          type="number"
-          value={params.azimuthalBins ?? ""}
-          onChange={(e) =>
-            update({
-              azimuthalBins: e.target.value ? parseInt(e.target.value) : null,
-            })
-          }
-          placeholder="None"
-          min={1}
-          disabled={disabled}
-          className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
-        />
-      </label>
-
-      <div className="col-span-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">
-            Reciprocal space S bins (S = 1/d)
-          </span>
-          <button
-            onClick={() => {
-              const current = params.radialBins ?? [];
-              update({ radialBins: [...current, [0.1, 1.0]] });
-            }}
-            disabled={disabled}
-            className="text-xs text-blue-400 hover:text-blue-300"
-          >
-            + Add bin
-          </button>
-        </div>
+        <span className="text-sm text-gray-400">Beta cutoff (deg)</span>
         <span className="block text-xs text-gray-500">
-          To export Debye ring profile
+          Pixels below this exit angle are dropped
         </span>
-        {params.radialBins && params.radialBins.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {params.radialBins.map((bin, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={bin[0]}
-                  onChange={(e) => {
-                    const bins = [...params.radialBins!];
-                    bins[i] = [parseFloat(e.target.value) || 0, bins[i][1]];
-                    update({ radialBins: bins });
-                  }}
-                  step={0.1}
-                  placeholder="min"
-                  disabled={disabled}
-                  className="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"
-                />
-                <span className="text-gray-500">-</span>
-                <input
-                  type="number"
-                  value={bin[1]}
-                  onChange={(e) => {
-                    const bins = [...params.radialBins!];
-                    bins[i] = [bins[i][0], parseFloat(e.target.value) || 0];
-                    update({ radialBins: bins });
-                  }}
-                  step={0.1}
-                  placeholder="max"
-                  disabled={disabled}
-                  className="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"
-                />
-                <span className="text-xs text-gray-500">Å⁻¹</span>
-                <button
-                  onClick={() => {
-                    const bins = params.radialBins!.filter((_, j) => j !== i);
-                    update({ radialBins: bins.length > 0 ? bins : null });
-                  }}
-                  disabled={disabled}
-                  className="text-sm text-red-400 hover:text-red-300"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+        <input
+          type="number"
+          value={params.beta}
+          onChange={(e) => update({ beta: parseFloat(e.target.value) || 0 })}
+          step={0.5}
+          min={0}
+          disabled={disabled}
+          className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+        />
+      </label>
+
+      {params.mode !== "symmetric" && (
+        <label className="block">
+          <span className="text-sm text-gray-400">
+            Frame edge blur fraction
+          </span>
+          <span className="block text-xs text-gray-500">
+            GID only
+            {params.mode === "auto" &&
+              "; ignored if the scan is detected as symmetric"}
+          </span>
+          <input
+            type="number"
+            value={params.blurFraction}
+            onChange={(e) =>
+              update({ blurFraction: parseFloat(e.target.value) || 0 })
+            }
+            step={0.05}
+            min={0}
+            max={1}
+            disabled={disabled}
+            className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+          />
+        </label>
+      )}
+
+      {params.mode !== "gid" && (
+        <label className="block">
+          <span className="text-sm text-gray-400">Zenithal bins</span>
+          <span className="block text-xs text-gray-500">
+            For integration{profileNote}
+          </span>
+          <input
+            type="number"
+            value={params.azimuthalBins ?? ""}
+            onChange={(e) =>
+              update({
+                azimuthalBins: e.target.value ? parseInt(e.target.value) : null,
+              })
+            }
+            placeholder="None"
+            min={1}
+            disabled={disabled}
+            className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm"
+          />
+        </label>
+      )}
+
+      {params.mode !== "gid" && (
+        <div className="col-span-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">
+              Reciprocal space S bins (S = 1/d)
+            </span>
+            <button
+              onClick={() => {
+                const current = params.radialBins ?? [];
+                update({ radialBins: [...current, [0.1, 1.0]] });
+              }}
+              disabled={disabled}
+              className="text-xs text-blue-400 hover:text-blue-300"
+            >
+              + Add bin
+            </button>
           </div>
-        )}
-      </div>
+          <span className="block text-xs text-gray-500">
+            To export Debye ring profile{profileNote}
+          </span>
+          {params.radialBins && params.radialBins.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {params.radialBins.map((bin, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={bin[0]}
+                    onChange={(e) => {
+                      const bins = [...params.radialBins!];
+                      bins[i] = [parseFloat(e.target.value) || 0, bins[i][1]];
+                      update({ radialBins: bins });
+                    }}
+                    step={0.1}
+                    placeholder="min"
+                    disabled={disabled}
+                    className="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"
+                  />
+                  <span className="text-gray-500">-</span>
+                  <input
+                    type="number"
+                    value={bin[1]}
+                    onChange={(e) => {
+                      const bins = [...params.radialBins!];
+                      bins[i] = [bins[i][0], parseFloat(e.target.value) || 0];
+                      update({ radialBins: bins });
+                    }}
+                    step={0.1}
+                    placeholder="max"
+                    disabled={disabled}
+                    className="w-20 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm"
+                  />
+                  <span className="text-xs text-gray-500">Å⁻¹</span>
+                  <button
+                    onClick={() => {
+                      const bins = params.radialBins!.filter((_, j) => j !== i);
+                      update({ radialBins: bins.length > 0 ? bins : null });
+                    }}
+                    disabled={disabled}
+                    className="text-sm text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

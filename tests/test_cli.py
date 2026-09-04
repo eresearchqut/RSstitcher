@@ -9,22 +9,37 @@ from rsstitcher.main import main_cli as rsstitcher_main
 
 DATASETS = {
     "bruker_gid": {
-        "tiff_hash": "c7b2a3667012fffdafa9773c4acd4a21",
+        "tiff_hash": "d2ee4f7c90c81380efef3dda8c1873db",
     },
     "bruker_symmetric": {
-        "tiff_hash": "bd63e33972528d3cdda4a854c895b0e4",
+        "tiff_hash": "c0e5bc576f5ba1eed4a84d3045a1f143",
     },
     "rigaku_gid": {
-        "tiff_hash": "2fe3358fd1931692892838982b386bd4",
+        "tiff_hash": "a184c6d34438a64432eab57304cc05a7",
     },
     "rigaku_symmetric": {
-        "tiff_hash": "956ab201cd97d97318a41a68c18bb51d",
+        "tiff_hash": "1a0eec3609edeffd6face1bc4dd5ca2b",
     },
     "cor_powder": {
-        "tiff_hash": "d17832b554b6141a75503836542b1074",
+        "tiff_hash": "14b46cd5524276e0689bb3acbf8e9f84",
     },
     "alfoil_rigaku": {
-        "tiff_hash": "d786e3a1ab54dbe1f9cd94e2512e9443",
+        "tiff_hash": "3db08d2cb59a98a6961d844e5fb207e1",
+    },
+    "bruker_symmetric_phi0": {
+        "tiff_hash": "f002b5f9a58979d52ed40254d27bad5e",
+    },
+    "nist_srm1976c": {
+        "tiff_hash": "858cd1ec4b21ea37adc55fe721f53282",
+    },
+    "zircon": {
+        "tiff_hash": "e8807ef0cbf264166778a1293c6624d6",
+    },
+    "rigaku_si_wafer_a": {
+        "tiff_hash": "742d18f10769a6262f2fd449c7957f68",
+    },
+    "rigaku_si_wafer_b": {
+        "tiff_hash": "f4c6e6a6ddbc4002fc1b94a2cc74a702",
     },
 }
 
@@ -94,7 +109,7 @@ def test_azimuthal_bins(tmp_path):
     csv_file = tmp_path / "azimuthal.csv"
     args = [
         "-q",
-        "tests/data/bruker_gid",
+        "tests/data/rigaku_symmetric",
         "--azimuthal-bins",
         "3",
         "--write",
@@ -109,12 +124,12 @@ def test_azimuthal_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # 1 shared Radius + 3 Chi sector columns
+    # 1 shared Radius + 3 Zenith sector columns
     assert len(header) == 4, f"Expected 4 columns, got {len(header)}: {header}"
-    assert header[0] == "Radius (S^-1)"
-    assert "Chi" in header[1]
+    assert header[0] == "Radius (A^-1)"
+    assert "Zenith" in header[1]
 
-    assert md5sum(csv_file) == "d6265e91a990648ad3ed523ec8c0a85b", (
+    assert md5sum(csv_file) == "d148240fdf0edeb3a35d1b1a342b7a07", (
         "Azimuthal CSV hash mismatch"
     )
 
@@ -124,7 +139,7 @@ def test_radial_bins(tmp_path):
     csv_file = tmp_path / "radial.csv"
     args = [
         "-q",
-        "tests/data/bruker_gid",
+        "tests/data/rigaku_symmetric",
         "--radial-bins",
         "0.5,1.0",
         "--write",
@@ -139,11 +154,30 @@ def test_radial_bins(tmp_path):
     with open(csv_file) as f:
         reader = csv.reader(f)
         header = next(reader)
-    # Chi (degrees) + 1 bin column
+    # Zenith (degrees) + 1 bin column
     assert len(header) == 2, f"Expected 2 columns, got {len(header)}: {header}"
-    assert header[0] == "Chi (degrees)"
+    assert header[0] == "Zenith (degrees)"
     assert "S = " in header[1]
 
-    assert md5sum(csv_file) == "33b6bf3ae8599566e66b72a72698f058", (
+    assert md5sum(csv_file) == "e58d52b3bb3ec2c55c69dfcb9187f9f8", (
         "Radial CSV hash mismatch"
     )
+
+
+@pytest.mark.parametrize(
+    "output,flags",
+    [
+        ("azimuthal_csv", ["--azimuthal-bins", "3"]),
+        ("radial_csv", ["--radial-bins", "0.5,1.0"]),
+        ("radial_overlay_tiff", ["--radial-bins", "0.5,1.0"]),
+    ],
+)
+def test_profile_outputs_refused_for_gid(output, flags, tmp_path):
+    """Profiles are symmetric-only: asking for one on a GID scan is an error
+    that names the mode."""
+    out_file = tmp_path / "out"
+    args = ["-q", "tests/data/bruker_gid", *flags, "--write", f"{output}={out_file}"]
+    sys.argv = ["rsstitcher"] + args
+    with pytest.raises(ValueError, match="gid"):
+        rsstitcher_main()
+    assert not out_file.exists()

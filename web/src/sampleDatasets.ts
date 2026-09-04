@@ -76,6 +76,46 @@ export const SAMPLE_DATASETS: SampleDataset[] = [
     sizeLabel: "88 MB",
     files: range(1, 11).map((i) => `WRRSM-Alfoil2_${pad(i, 4)}.img`),
   },
+  {
+    id: "bruker_symmetric_phi0",
+    name: "Bruker Symmetric, phi 0",
+    format: "Bruker (.gfrm)",
+    sizeLabel: "21 MB",
+    files: range(0, 100).map(
+      (i) => `WR-RSM_Satin-Spar_15-125-0.1-1100s_50Chi_2Phi-${pad(i, 3)}.gfrm`,
+    ),
+  },
+  {
+    id: "nist_srm1976c",
+    name: "NIST SRM 1976c",
+    format: "Rigaku (.img)",
+    sizeLabel: "71 MB",
+    // Frame 0005 is absent from the folder.
+    files: [1, 2, 3, 4, 6, 7, 8, 9].map(
+      (i) => `WRRSM-NISTSRM1976c-osci_${pad(i, 4)}.img`,
+    ),
+  },
+  {
+    id: "zircon",
+    name: "Zircon",
+    format: "Rigaku (.img)",
+    sizeLabel: "79 MB",
+    files: range(1, 10).map((i) => `WRRSM-Zircon_${pad(i, 4)}.img`),
+  },
+  {
+    id: "rigaku_si_wafer_a",
+    name: "Si Wafer A",
+    format: "Rigaku (.img)",
+    sizeLabel: "79 MB",
+    files: range(1, 10).map((i) => `Si_A_WRRSM_25-140_${pad(i, 4)}.img`),
+  },
+  {
+    id: "rigaku_si_wafer_b",
+    name: "Si Wafer B",
+    format: "Rigaku (.img)",
+    sizeLabel: "79 MB",
+    files: range(1, 10).map((i) => `Si_B_WRRSM_25-140_${pad(i, 4)}.img`),
+  },
 ];
 
 export function getSampleDatasetUrl(

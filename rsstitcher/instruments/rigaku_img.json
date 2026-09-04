@@ -14,7 +14,7 @@
         "det_dim": {"header": "PXD_DETECTOR_DIMENSIONS", "index": -1}
     },
     "fields": {
-        "chi_degrees": "chi_raw",
+        "chi_degrees": "chi_raw + 90",
         "phi_degrees": "phi_raw",
         "omega_degrees": "omega_raw",
         "detector_distance_mm": "det_dist",

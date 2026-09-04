@@ -14,7 +14,7 @@
     "fields": {
         "beam_position_x": "(-1 * start_0) / increme_0",
         "beam_position_y": "center_1",
-        "chi_degrees": "angles_3 - 180",
+        "chi_degrees": "angles_3 - 90",
         "phi_degrees": "angles_2",
         "omega_degrees": "angles_1",
         "detector_distance_mm": "distanc_0 * 10",

@@ -1,10 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { WorkerClient, type ProcessResult } from "../worker/workerClient";
-import type { PyodideStatus, ProcessParams, InputFile } from "../worker/types";
+import type {
+  PyodideStatus,
+  ProcessParams,
+  ProcessProgress,
+  ProcessLogRecord,
+  InputFile,
+} from "../worker/types";
 
 export interface UsePyodideReturn {
   status: PyodideStatus;
   progressStage: string;
+  processProgress: ProcessProgress | null;
+  /** Log of the current or most recent processing run. */
+  processLog: ProcessLogRecord[];
   error: string | null;
   result: ProcessResult | null;
   process: (files: InputFile[], params: ProcessParams) => Promise<void>;
@@ -13,6 +22,9 @@ export interface UsePyodideReturn {
 export function usePyodide(): UsePyodideReturn {
   const [status, setStatus] = useState<PyodideStatus>("loading");
   const [progressStage, setProgressStage] = useState("");
+  const [processProgress, setProcessProgress] =
+    useState<ProcessProgress | null>(null);
+  const [processLog, setProcessLog] = useState<ProcessLogRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessResult | null>(null);
   const clientRef = useRef<WorkerClient | null>(null);
@@ -42,18 +54,42 @@ export function usePyodide(): UsePyodideReturn {
       setStatus("processing");
       setError(null);
       setResult(null);
+      setProcessProgress(null);
+      setProcessLog([]);
 
       try {
-        const processResult = await clientRef.current.process(files, params);
+        const processResult = await clientRef.current.process(
+          files,
+          params,
+          (record) => {
+            setProcessLog((log) => [...log, record]);
+            if (record.progress) {
+              setProcessProgress({
+                ...record.progress,
+                message: record.message,
+              });
+            }
+          },
+        );
         setResult(processResult);
         setStatus("ready");
       } catch (e) {
         setError(String(e));
         setStatus("ready");
+      } finally {
+        setProcessProgress(null);
       }
     },
     [],
   );
 
-  return { status, progressStage, error, result, process };
+  return {
+    status,
+    progressStage,
+    processProgress,
+    processLog,
+    error,
+    result,
+    process,
+  };
 }

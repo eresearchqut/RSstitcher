@@ -15,6 +15,7 @@ const DEFAULT_PARAMS: ProcessParams = {
   scale: "linear",
   phiTolerance: 5.0,
   blurFraction: 0.1,
+  beta: 1.5,
   azimuthalBins: 1,
   radialBins: [[0.1, 1.0]],
   instrument: "auto",
@@ -127,6 +128,8 @@ export default function App() {
         <StatusDisplay
           status={pyodide.status}
           progressStage={pyodide.progressStage}
+          processProgress={pyodide.processProgress}
+          processLog={pyodide.processLog}
           error={pyodide.error}
         />
 
